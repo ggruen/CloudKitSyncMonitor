@@ -96,14 +96,14 @@ class SyncStatus: ObservableObject {
     ///
     /// Returns true if the network is available, NSPersistentCloudKitContainer ran an import, and the import reported an error
     var importError: Bool {
-        return networkAvailable == true && importSuccessful == false
+        return networkAvailable == true && lastImportError != nil
     }
 
     /// Is iCloud export sync broken?
     ///
     /// Returns true if the network is available, NSPersistentCloudKitContainer ran an export, and the export reported an error
     var exportError: Bool {
-        return networkAvailable == true && exportSuccessful == false
+        return networkAvailable == true && lastExportError != nil
     }
 
     /// Is iCloud sync broken?
@@ -140,15 +140,21 @@ class SyncStatus: ObservableObject {
         // Fixed in Xcode 12.2 beta, but I'm leaving this commented out in case I need to add it back to do a release.
         //        #if !targetEnvironment(macCatalyst)
         NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification)
-            .debounce(for: 1, scheduler: DispatchQueue.main)
+            // Note no debounce/throttle here, as we need the last notification for _each type of event_.
+            // Debounce or throttle will likely drop certain events - e.g. if we get an import and export in rapid
+            // succession, we'd only see the export event.
             .sink(receiveValue: { notification in
                 if let cloudEvent = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
                     as? NSPersistentCloudKitContainer.Event {
-                    // This translation to our "SyncEvent" lets us write unit tests, since
-                    // NSPersistentCloudKitContainer.Event's properties are read-only (meaning we can't fire off a
-                    // fake one).
-                    let event = SyncEvent(from: cloudEvent)
-                    self.setProperties(from: event)
+                    // CloudKit sends an event when the setup, import, or export starts, then another when it finishes.
+                    // We only update on finish (which means there's an endDate).
+                    if cloudEvent.endDate != nil {
+                        // This translation to our "SyncEvent" lets us write unit tests, since
+                        // NSPersistentCloudKitContainer.Event's properties are read-only (meaning we can't fire off a
+                        // fake one).
+                        let event = SyncEvent(from: cloudEvent)
+                        DispatchQueue.main.async { self.setProperties(from: event) }
+                    }
                 }
             })
             .store(in: &disposables)
@@ -199,7 +205,7 @@ class SyncStatus: ObservableObject {
         var error: Error?
 
         /// Creates a SyncEvent from explicitly provided values (for testing)
-        init(type: NSPersistentCloudKitContainer.EventType, succeeded: Bool, error: Error) {
+        init(type: NSPersistentCloudKitContainer.EventType, succeeded: Bool, error: Error?) {
             self.type = type
             self.succeeded = succeeded
             self.error = error
