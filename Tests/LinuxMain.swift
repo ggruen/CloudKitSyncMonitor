@@ -1,7 +1,7 @@
 import XCTest
 
-import NSPersistentCloudKitContainerSyncStatusTests
+import CloudKitSyncStatusTests
 
 var tests = [XCTestCaseEntry]()
-tests += NSPersistentCloudKitContainerSyncStatusTests.allTests()
+tests += SyncStatusTests.allTests()
 XCTMain(tests)
