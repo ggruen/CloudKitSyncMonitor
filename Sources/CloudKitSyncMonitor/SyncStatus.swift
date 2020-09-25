@@ -21,7 +21,7 @@ import Network
 ///
 /// This SwiftUI view will display a red error image at the top of the screen if there's an import or export error:
 ///
-///     import CloudKitSyncStatus
+///     import CloudKitSyncMonitor
 ///     struct SyncStatusView: View {
 ///         @available(iOS 14.0, *)
 ///         @ObservedObject var syncStatus = SyncStatus.shared
@@ -59,7 +59,7 @@ import Network
 /// when the user noticed the failure. Previously, that time was based on when the user looked at two devices and noticed that they didn't contain the same data.
 /// With `SyncStatus`, your app can report (or act on) that failure _immediately_, saving your user's data and your app's reputation.
 @available(iOS 14.0, macCatalyst 14.0, macOS 11.0, *)
-class SyncStatus: ObservableObject {
+public class SyncStatus: ObservableObject {
     /// A singleton to use
     static let shared = SyncStatus()
 

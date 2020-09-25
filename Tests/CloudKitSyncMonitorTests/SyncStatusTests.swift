@@ -1,6 +1,6 @@
 import XCTest
 import CoreData
-@testable import CloudKitSyncStatus
+@testable import CloudKitSyncMonitor
 
 @available(iOS 14.0, *)
 final class SyncStatusTests: XCTestCase {
@@ -77,5 +77,6 @@ final class SyncStatusTests: XCTestCase {
     static var allTests = [
         ("testCanDetectImportError", testCanDetectImportError),
         ("testCanDetectExportError", testCanDetectExportError),
+        ("testCanDistinguishBetweenExportAndImportError", testCanDistinguishBetweenExportAndImportError),
     ]
 }
