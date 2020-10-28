@@ -90,6 +90,7 @@ import SwiftUI
 ///         }
 ///     }
 ///
+#if !targetEnvironment(macCatalyst) // macOS 11 workaround
 @available(iOS 14.0, macCatalyst 14.0, OSX 11, tvOS 14.0, *)
 public class SyncMonitor: ObservableObject {
     /// A singleton to use
@@ -585,3 +586,4 @@ public class SyncMonitor: ObservableObject {
         }
     }
 }
+#endif
