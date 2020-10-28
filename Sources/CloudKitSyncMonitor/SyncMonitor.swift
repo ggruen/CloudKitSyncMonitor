@@ -400,17 +400,19 @@ public class SyncMonitor: ObservableObject {
         guard listen else { return }
 
         // Monitor NSPersistentCloudKitContainer sync events
-        NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification)
-            .sink(receiveValue: { notification in
-                if let cloudEvent = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
-                    as? NSPersistentCloudKitContainer.Event {
-                    let event = SyncEvent(from: cloudEvent) // To make testing possible
-                    // Properties need to be set on the main thread for SwiftUI, so we'll do that here
-                    // instead of maing setProperties run async code, which is inconvenient for testing.
-                    DispatchQueue.main.async { self.setProperties(from: event) }
-                }
-            })
-            .store(in: &disposables)
+        if #available(iOS 14.0, macCatalyst 14.0, *) { // Crashes on 13.7 w/o this, even though we have @available
+            NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification)
+                .sink(receiveValue: { notification in
+                    if let cloudEvent = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                        as? NSPersistentCloudKitContainer.Event {
+                        let event = SyncEvent(from: cloudEvent) // To make testing possible
+                        // Properties need to be set on the main thread for SwiftUI, so we'll do that here
+                        // instead of maing setProperties run async code, which is inconvenient for testing.
+                        DispatchQueue.main.async { self.setProperties(from: event) }
+                    }
+                })
+                .store(in: &disposables)
+        }
 
         // Update the network status when the OS reports a change. Note that we ignore whether the connection is
         // expensive or not - we just care whether iCloud is _able_ to sync. If there's no network,
