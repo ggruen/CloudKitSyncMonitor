@@ -146,7 +146,7 @@ public class SyncMonitor: ObservableObject {
         if case .inProgress = importState { return .inProgress }
         if case .inProgress = exportState { return .inProgress }
 
-        if case .succeeded = setupState, case .succeeded = importState, case .succeeded = exportState {
+        if case .succeeded = importState, case .succeeded = exportState {
             return .succeeded
         }
         return .unknown
