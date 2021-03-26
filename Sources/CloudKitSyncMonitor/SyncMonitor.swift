@@ -86,11 +86,11 @@ import SwiftUI
 ///         } else if syncMonitor.notSyncing {
 ///             Image(systemName: "xmark.icloud")
 ///         } else {
-///             Image(systemName: .icloud).foregroundColor(.green)
+///             Image(systemName: "icloud").foregroundColor(.green)
 ///         }
 ///     }
 ///
-@available(iOS 14.0, macCatalyst 14.0, OSX 11, tvOS 14.0, *)
+@available(iOS 14.0, macCatalyst 14.0, OSX 11, tvOS 14.0, watchOS 7, *)
 public class SyncMonitor: ObservableObject {
     /// A singleton to use
     public static let shared = SyncMonitor()
@@ -421,7 +421,13 @@ public class SyncMonitor: ObservableObject {
         // allowing syncing over cellular connections), NSPersistentCloudKitContainer won't try to sync.
         // If that assumption is incorrect, we'll need to update the logic in this class.
         monitor.pathUpdateHandler = { path in
-            DispatchQueue.main.async { self.networkAvailable = (path.status == .satisfied) }
+            DispatchQueue.main.async {
+                #if os(watchOS)
+                self.networkAvailable = (path.availableInterfaces.count > 0)
+                #else
+                self.networkAvailable = (path.status == .satisfied)
+                #endif
+            }
         }
         monitor.start(queue: monitorQueue)
 
