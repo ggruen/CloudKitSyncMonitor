@@ -33,7 +33,7 @@ import SwiftUI
 ///         print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
 ///     }
 ///
-/// `syncError` and `notSyncing`, together, tell you if there's a problem that `NSPersistentCloudKitContainer` has announced or not accounted
+/// `syncError` and `notSyncing`, together, tell you if there's a problem that `NSPersistentCloudKitContainer` has announced or not announced
 /// (respectively).
 /// The `setupError`, `importError`, and `exportError` properties can give you the reported error. Digging deeper, `setupState`, `importState`,
 /// and `exportState` give you the state of each type of `NSPersistentCloudKitContainer` event in a nice little `SyncState` enum with associated
