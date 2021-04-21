@@ -33,7 +33,7 @@ import SwiftUI
 ///         print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
 ///     }
 ///
-/// `syncErrror` and `notSyncing`, together, tell you if there's a problem that `NSPersistentCloudKitContainer` has announced or not accounced
+/// `syncError` and `notSyncing`, together, tell you if there's a problem that `NSPersistentCloudKitContainer` has announced or not announced
 /// (respectively).
 /// The `setupError`, `importError`, and `exportError` properties can give you the reported error. Digging deeper, `setupState`, `importState`,
 /// and `exportState` give you the state of each type of `NSPersistentCloudKitContainer` event in a nice little `SyncState` enum with associated
@@ -574,7 +574,7 @@ public class SyncMonitor: ObservableObject {
             return false
         }
 
-        /// Conveneince property that returns the error returned if the event failed
+        /// Convenience property that returns the error returned if the event failed
         ///
         /// This is the main property you'll want to use to detect an error, as it will be `nil` if the sync is incomplete or succeeded, and will contain
         /// an `Error` if the sync finished and failed.
