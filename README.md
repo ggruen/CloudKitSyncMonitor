@@ -117,9 +117,9 @@ You could, for example, display details about the user's sync status includng wh
         return dateFormatter
     }()
 
-    print("Setup state: \(stateText(for: SyncMonitor.shared.importState))")
+    print("Setup state: \(stateText(for: SyncMonitor.shared.setupState))")
     print("Import state: \(stateText(for: SyncMonitor.shared.importState))")
-    print("Export state: \(stateText(for: SyncMonitor.shared.importState))")
+    print("Export state: \(stateText(for: SyncMonitor.shared.exportState))")
     
     /// Returns a user-displayable text description of the sync state
     func stateText(for state: SyncMonitor.SyncState) -> String {
