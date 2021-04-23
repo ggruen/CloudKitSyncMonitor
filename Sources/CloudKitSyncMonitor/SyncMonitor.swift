@@ -359,6 +359,10 @@ public class SyncMonitor: ObservableObject {
 
     /// If an error was encountered when retrieving the user's account status, this will be non-nil
     public private(set) var iCloudAccountStatusUpdateError: Error?
+    
+    // MARK: - Specific Status Publishers -
+    
+    public let syncSucceeded = PassthroughSubject<Bool,Never>()
 
     // MARK: - Diagnosis properties -
 
@@ -494,6 +498,7 @@ public class SyncMonitor: ObservableObject {
         } else if let startDate = event.startDate, let endDate = event.endDate {
             if event.succeeded {
                 state = .succeeded(started: startDate, ended: endDate)
+                syncSucceeded.send(true)
             } else {
                 state = .failed(started: startDate, ended: endDate, error: event.error)
             }
