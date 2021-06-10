@@ -9,6 +9,7 @@ import Combine
 import CoreData
 import Network
 import SwiftUI
+import CloudKit
 
 /// An object, usually used as a singleton, that provides, and publishes, the current state of `NSPersistentCloudKitContainer`'s sync
 ///
