@@ -99,7 +99,7 @@ public class SyncMonitor: ObservableObject {
 
     /// Returns an overview of the state of sync, which you could use to display a summary icon
     ///
-    /// The general sync state is detmined as follows:
+    /// The general sync state is determined as follows:
     /// - If the network isn't available, the state summary is `.noNetwork`.
     /// - Otherwise, if the iCloud account isn't available (e.g. they're not logged in or have disabled iCloud for the app in Settings or System Preferences), the
     ///     state summary is`.accountNotAvailable`.
