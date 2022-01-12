@@ -147,7 +147,7 @@ For more information, refer to the documentation in SyncMonitor.
     targets: [
         .target(
             name: "MyApp", // Where "MyApp" is the name of your app
-            dependencies: ["SocketConnection"]),
+            dependencies: ["CloudKitSyncMonitor"]),
     ]
 
 Or, in Xcode, you can select File » Swift Packages » Add Package Dependency... and specify the repository URL
