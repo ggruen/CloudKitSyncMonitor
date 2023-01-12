@@ -178,6 +178,28 @@ public class SyncMonitor: ObservableObject {
                 return "icloud.slash"
             }
         }
+        
+        // A string you could use to display the status
+        public var description: String {
+            switch self {
+            case .noNetwork:
+                return "No network available"
+            case .accountNotAvailable:
+                return "No iCloud account"
+            case .error:
+                return "Error"
+            case .notSyncing:
+                return "Not syncing to iCloud"
+            case .notStarted:
+                return "Sync not started"
+            case .inProgress:
+                return "Syncing..."
+            case .succeeded:
+                return "Synced with iCloud"
+            case .unknown:
+                return "Error"
+            }
+        }
 
         /// A color you could use for the symbol
         public var symbolColor: Color {
