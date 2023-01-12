@@ -179,7 +179,7 @@ public class SyncMonitor: ObservableObject {
             }
         }
         
-        // A text you could use to disay the status
+        // A string you could use to display the status
         public var description: String {
             switch self {
             case .noNetwork:
