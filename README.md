@@ -8,50 +8,58 @@ no notification to the user. Well, now there's an immediate warning, and you can
 
 This SwiftUI view will display a red error image at the top of the screen if there's a sync error:
 
-    import CloudKitSyncMonitor
-    struct SyncStatusView: View {
-        @available(iOS 14.0, *)
-        @ObservedObject var syncMonitor = SyncMonitor.shared
+```swift
+import CloudKitSyncMonitor
+struct SyncStatusView: View {
+    @available(iOS 14.0, *)
+    @ObservedObject var syncMonitor = SyncMonitor.shared
 
-        var body: some View {
-            // Show sync status if there's a sync error 
-             if #available(iOS 14.0, *), syncMonitor.syncStateSummary.isBroken {
-                 Image(systemName: syncMonitor.syncStateSummary.symbolName)
-                     .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
-             }
-        }
+    var body: some View {
+        // Show sync status if there's a sync error 
+         if #available(iOS 14.0, *), syncMonitor.syncStateSummary.isBroken {
+             Image(systemName: syncMonitor.syncStateSummary.symbolName)
+                 .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
+         }
     }
+}
+```
 
 This will show an image that indicates the current state of sync (it's the same as above with `syncMonitor.syncStateSummary.isBroken`
 removed):
 
-    import CloudKitSyncMonitor
-    struct SyncStatusView: View {
-        @available(iOS 14.0, *)
-        @ObservedObject var syncMonitor = SyncMonitor.shared
+```swift
+import CloudKitSyncMonitor
+struct SyncStatusView: View {
+    @available(iOS 14.0, *)
+    @ObservedObject var syncMonitor = SyncMonitor.shared
 
-        var body: some View {
-            // Show sync status 
-            if #available(iOS 14.0, *) {
-                Image(systemName: syncMonitor.syncStateSummary.symbolName)
-                    .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
-            }
+    var body: some View {
+        // Show sync status 
+        if #available(iOS 14.0, *) {
+            Image(systemName: syncMonitor.syncStateSummary.symbolName)
+                .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
         }
     }
+}
+```
 
 You could change the if clause to this to display an icon only when a sync is in progress or there's an error:
 
-    if #available(iOS 14.0, *),
-        (syncMonitor.syncStateSummary.isBroken || syncMonitor.syncStateSummary.inProgress) {
-        Image(systemName: syncMonitor.syncStateSummary.symbolName)
-            .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
-    }
+```swift
+if #available(iOS 14.0, *),
+    (syncMonitor.syncStateSummary.isBroken || syncMonitor.syncStateSummary.inProgress) {
+    Image(systemName: syncMonitor.syncStateSummary.symbolName)
+        .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
+}
+```
 
 Or check for specific states:
 
-    if #available(iOS 14.0, *), case .accountNotAvailable = syncMonitor.syncStateSummary {
-        Text("Hey, log into your iCloud account if you want to sync")
-    }
+```swift
+if #available(iOS 14.0, *), case .accountNotAvailable = syncMonitor.syncStateSummary {
+    Text("Hey, log into your iCloud account if you want to sync")
+}
+```
 
 `CloudKitSyncMonitor` takes the network availablity and the user's iCloud account availablity into account when considering sync
 to be "broken". e.g. if the user is on an airplane, or not logged into iCloud, `CloudKitSyncMonitor` doesn't consider sync to be `isBroken`.
@@ -78,20 +86,22 @@ You can tell if there's a sync problem by checking the `syncError` and `notSynci
 
 This code will detect if there's a sync issue that your user, or your app, needs to do something about:
 
-    // If true, either setupError, importError or exportError will contain an error
-    if SyncMonitor.shared.syncError {
-        if let e = SyncMonitor.shared.setupError {
-            print("Unable to set up iCloud sync, changes won't be saved! \(e.localizedDescription)")
-        }
-        if let e = SyncMonitor.shared.importError {
-            print("Import is broken: \(e.localizedDescription)")
-        }
-        if let e = SyncMonitor.shared.exportError {
-            print("Export is broken - your changes aren't being saved! \(e.localizedDescription)")
-        }
-    } else if SyncMonitor.shared.notSyncing {
-        print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
+```swift
+// If true, either setupError, importError or exportError will contain an error
+if SyncMonitor.shared.syncError {
+    if let e = SyncMonitor.shared.setupError {
+        print("Unable to set up iCloud sync, changes won't be saved! \(e.localizedDescription)")
     }
+    if let e = SyncMonitor.shared.importError {
+        print("Import is broken: \(e.localizedDescription)")
+    }
+    if let e = SyncMonitor.shared.exportError {
+        print("Export is broken - your changes aren't being saved! \(e.localizedDescription)")
+    }
+} else if SyncMonitor.shared.notSyncing {
+    print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
+}
+```
 
  `notSyncing` is a special property that tells you when `SyncMonitor` has noticed that `NSPersistentCloudKitContainer` reported that
 its "setup" event completed successfully, but that no "import" event was started, and no errors were reported. This can happen, for example,
@@ -110,30 +120,32 @@ For more detail, the `setupState`, `importState`, and `exportState` properties r
 
 You could, for example, display details about the user's sync status includng when sync events started and finished like this:
 
-    fileprivate var dateFormatter: DateFormatter = {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = DateFormatter.Style.short
-        dateFormatter.timeStyle = DateFormatter.Style.short
-        return dateFormatter
-    }()
+```swift
+fileprivate var dateFormatter: DateFormatter = {
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateStyle = DateFormatter.Style.short
+    dateFormatter.timeStyle = DateFormatter.Style.short
+    return dateFormatter
+}()
 
-    print("Setup state: \(stateText(for: SyncMonitor.shared.setupState))")
-    print("Import state: \(stateText(for: SyncMonitor.shared.importState))")
-    print("Export state: \(stateText(for: SyncMonitor.shared.exportState))")
-    
-    /// Returns a user-displayable text description of the sync state
-    func stateText(for state: SyncMonitor.SyncState) -> String {
-        switch state {
-        case .notStarted:
-            return "Not started"
-        case .inProgress(started: let date):
-            return "In progress since \(dateFormatter.string(from: date))"
-        case let .succeeded(started: _, ended: endDate):
-            return "Suceeded at \(dateFormatter.string(from: endDate))"
-        case let .failed(started: _, ended: endDate, error: _):
-            return "Failed at \(dateFormatter.string(from: endDate))"
-        }
+print("Setup state: \(stateText(for: SyncMonitor.shared.setupState))")
+print("Import state: \(stateText(for: SyncMonitor.shared.importState))")
+print("Export state: \(stateText(for: SyncMonitor.shared.exportState))")
+
+/// Returns a user-displayable text description of the sync state
+func stateText(for state: SyncMonitor.SyncState) -> String {
+    switch state {
+    case .notStarted:
+        return "Not started"
+    case .inProgress(started: let date):
+        return "In progress since \(dateFormatter.string(from: date))"
+    case let .succeeded(started: _, ended: endDate):
+        return "Suceeded at \(dateFormatter.string(from: endDate))"
+    case let .failed(started: _, ended: endDate, error: _):
+        return "Failed at \(dateFormatter.string(from: endDate))"
     }
+}
+```
 
 For more information, refer to the documentation in SyncMonitor.
 
@@ -141,14 +153,16 @@ For more information, refer to the documentation in SyncMonitor.
 
 `CloudKitSyncMonitor` is a swift package - add it to `Package.swift`:
 
-    dependencies: [
-        .package(url: "https://github.com/ggruen/CloudKitSyncMonitor.git", from: "1.0.0"),
-    ],
-    targets: [
-        .target(
-            name: "MyApp", // Where "MyApp" is the name of your app
-            dependencies: ["SocketConnection"]),
-    ]
+```swift
+dependencies: [
+    .package(url: "https://github.com/ggruen/CloudKitSyncMonitor.git", from: "1.0.0"),
+],
+targets: [
+    .target(
+        name: "MyApp", // Where "MyApp" is the name of your app
+        dependencies: ["CloudKitSyncMonitor"]),
+]
+```
 
 Or, in Xcode, you can select File » Swift Packages » Add Package Dependency... and specify the repository URL
 `https://github.com/ggruen/CloudKitSyncMonitor.git` and "up to next major version" `1.0.0`.
