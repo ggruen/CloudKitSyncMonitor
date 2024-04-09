@@ -91,7 +91,7 @@ import CloudKit
 ///         }
 ///     }
 ///
-@available(iOS 14.0, macCatalyst 14.0, OSX 11, tvOS 14.0, watchOS 7, *)
+@available(iOS 14.0, macCatalyst 14.0, OSX 12, tvOS 14.0, watchOS 7, *)
 public class SyncMonitor: ObservableObject {
     /// A singleton to use
     public static let shared = SyncMonitor()
@@ -183,21 +183,21 @@ public class SyncMonitor: ObservableObject {
         public var description: String {
             switch self {
             case .noNetwork:
-                return "No network available"
+                return String(localized: "No network available")
             case .accountNotAvailable:
-                return "No iCloud account"
+                return String(localized: "No iCloud account")
             case .error:
-                return "Error"
+                return String(localized: "Error")
             case .notSyncing:
-                return "Not syncing to iCloud"
+                return String(localized: "Not syncing to iCloud")
             case .notStarted:
-                return "Sync not started"
+                return String(localized: "Sync not started")
             case .inProgress:
-                return "Syncing..."
+                return String(localized: "Syncing...")
             case .succeeded:
-                return "Synced with iCloud"
+                return String(localized: "Synced with iCloud")
             case .unknown:
-                return "Error"
+                return String(localized: "Error")
             }
         }
 
