@@ -91,7 +91,7 @@ import CloudKit
 ///         }
 ///     }
 ///
-@available(iOS 14.0, macCatalyst 14.0, OSX 12, tvOS 14.0, watchOS 7, *)
+@available(iOS 15.0, macCatalyst 14.0, OSX 12, tvOS 15.0, watchOS 8, *)
 public class SyncMonitor: ObservableObject {
     /// A singleton to use
     public static let shared = SyncMonitor()
