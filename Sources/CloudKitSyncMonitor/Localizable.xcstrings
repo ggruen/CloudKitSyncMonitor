@@ -41,7 +41,7 @@
         },
         "ja" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "エラー"
           }
         },
@@ -105,8 +105,8 @@
         },
         "ja" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "iCloudアカウントがない"
+            "state" : "translated",
+            "value" : "iCloudアカウントが見つかりません"
           }
         },
         "ko" : {
@@ -169,8 +169,8 @@
         },
         "ja" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "ネットワークが利用できない"
+            "state" : "translated",
+            "value" : "ネットワークが利用できません"
           }
         },
         "ko" : {
@@ -233,8 +233,8 @@
         },
         "ja" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "iCloudに同期しない"
+            "state" : "translated",
+            "value" : "iCloudに同期できません"
           }
         },
         "ko" : {
@@ -297,8 +297,8 @@
         },
         "ja" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "同期が開始されない"
+            "state" : "translated",
+            "value" : "同期が開始されていません"
           }
         },
         "ko" : {
@@ -361,8 +361,8 @@
         },
         "ja" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "iCloudと同期される"
+            "state" : "translated",
+            "value" : "iCloudと同期されました"
           }
         },
         "ko" : {
@@ -425,8 +425,8 @@
         },
         "ja" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "同期..."
+            "state" : "translated",
+            "value" : "同期中..."
           }
         },
         "ko" : {
