@@ -101,7 +101,7 @@ public class SyncMonitor: ObservableObject {
 
     /// Returns an overview of the state of sync, which you could use to display a summary icon
     ///
-    /// The general sync state is detmined as follows:
+    /// The general sync state is determined as follows:
     /// - If the network isn't available, the state summary is `.noNetwork`.
     /// - Otherwise, if the iCloud account isn't available (e.g. they're not logged in or have disabled iCloud for the app in Settings or System Preferences), the
     ///     state summary is`.accountNotAvailable`.
@@ -383,6 +383,10 @@ public class SyncMonitor: ObservableObject {
 
     /// If an error was encountered when retrieving the user's account status, this will be non-nil
     public private(set) var iCloudAccountStatusUpdateError: Error?
+    
+    // MARK: - Specific Status Publishers -
+    
+    public let syncSucceeded = PassthroughSubject<Bool,Never>()
 
     // MARK: - Diagnosis properties -
 
@@ -518,6 +522,7 @@ public class SyncMonitor: ObservableObject {
         } else if let startDate = event.startDate, let endDate = event.endDate {
             if event.succeeded {
                 state = .succeeded(started: startDate, ended: endDate)
+                syncSucceeded.send(true)
             } else {
                 state = .failed(started: startDate, ended: endDate, error: event.error)
             }
