@@ -494,6 +494,13 @@ public class SyncMonitor: ObservableObject {
     /// When SyncMonitor is listening to notifications (which it does unless you tell it not to when initializing), this method is called each time CKContainer
     /// fires off a `.CKAccountChanged` notification.
     private func updateiCloudAccountStatus() {
+        #if DEBUG
+        let isPreview = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        guard !isPreview else {
+            return
+        }
+        #endif
+            
         CKContainer.default().accountStatus { (accountStatus, error) in
             DispatchQueue.main.async {
                 if let e = error {
