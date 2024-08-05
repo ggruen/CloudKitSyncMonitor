@@ -496,7 +496,7 @@ public class SyncMonitor: ObservableObject {
     private func updateiCloudAccountStatus() {
         #if DEBUG
         let isPreview = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
-        guard !isPreview else {
+        if isPreview {
             return
         }
         #endif
