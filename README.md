@@ -118,7 +118,7 @@ user's data and your app's reputation.
 For more detail, the `setupState`, `importState`, and `exportState` properties return enum values that contain other details provided by
 `NSPersistentCloudKitContainer`, e.g. the start and end times of each event.
 
-You could, for example, display details about the user's sync status includng when sync events started and finished like this:
+You could, for example, display details about the user's sync status including when sync events started and finished like this:
 
 ```swift
 fileprivate var dateFormatter: DateFormatter = {
