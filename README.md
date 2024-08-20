@@ -61,7 +61,7 @@ if #available(iOS 15.0, *), case .accountNotAvailable = syncMonitor.syncStateSum
 }
 ```
 
-`CloudKitSyncMonitor` takes the network availablity and the user's iCloud account availablity into account when considering sync
+`CloudKitSyncMonitor` takes the network availability and the user's iCloud account availability into account when considering sync
 to be "broken". e.g. if the user is on an airplane, or not logged into iCloud, `CloudKitSyncMonitor` doesn't consider sync to be `isBroken`.
 
 The `CloudKitSyncMonitor` package provides a class called `SyncMonitor`, which you can use as a singleton in your app via
@@ -107,7 +107,7 @@ if SyncMonitor.shared.syncError {
 its "setup" event completed successfully, but that no "import" event was started, and no errors were reported. This can happen, for example,
 if the OS has presented a "please re-enter your password" notification/popup (in which case, CloudKit consider's the user's account
 "available", but NSPersistentCloudKitContainer won't actually be able to sync). `notSyncing`, like `isBroken`, take things like network
-availabity and the user's iCloud login status into account.
+availability and the user's iCloud login status into account.
 
 Detecting error conditions is important because the usual "fix" for CloudKit not syncing is to delete the local database. This
 is fine if your import stopped working, but if the export stopped working, this means that your user will lose any changes they made between
