@@ -257,6 +257,9 @@ public class SyncMonitor: ObservableObject {
             return false
         }
     }
+  
+    @available(*, deprecated, renamed: "hasSyncError")
+    public var syncError: Bool { hasSyncError }
     
     /// Returns true if `NSPersistentCloudKitContainer` has reported an error.
     ///
@@ -291,6 +294,9 @@ public class SyncMonitor: ObservableObject {
         }
         return false
     }
+  
+    @available(*, deprecated, renamed: "isNotSyncing")
+    public var notSyncing: Bool { isNotSyncing }
     
     /// Detects a condition in which CloudKit _should_ be syncing, but isn't.
     ///
