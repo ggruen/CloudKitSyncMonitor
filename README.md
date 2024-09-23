@@ -12,7 +12,7 @@ This SwiftUI view will display a red error image at the top of the screen if the
 import CloudKitSyncMonitor
 struct SyncStatusView: View {
     @available(iOS 15.0, *)
-    @ObservedObject var syncMonitor = SyncMonitor.shared
+    @StateObject var syncMonitor = SyncMonitor.shared
 
     var body: some View {
         // Show sync status if there's a sync error 
@@ -31,7 +31,7 @@ removed):
 import CloudKitSyncMonitor
 struct SyncStatusView: View {
     @available(iOS 15.0, *)
-    @ObservedObject var syncMonitor = SyncMonitor.shared
+    @StateObject var syncMonitor = SyncMonitor.shared
 
     var body: some View {
         // Show sync status 
@@ -81,14 +81,14 @@ Setup, Import, and Export.
 `SyncMonitor` stores the current state of each of these types of events in `setupState`, `importState`, and `exportState` respectively,
 and provides convenience methods to extract commonly-needed information from these.
 
-You can tell if there's a sync problem by checking the `syncError` and `notSyncing` properties, and get error details from the `setupError`,
+You can tell if there's a sync problem by checking the `hasSyncError` and `isNotSyncing` properties, and get error details from the `setupError`,
 `importError`, and `exportError` computed properties.
 
 This code will detect if there's a sync issue that your user, or your app, needs to do something about:
 
 ```swift
 // If true, either setupError, importError or exportError will contain an error
-if SyncMonitor.shared.syncError {
+if SyncMonitor.shared.hasSyncError {
     if let e = SyncMonitor.shared.setupError {
         print("Unable to set up iCloud sync, changes won't be saved! \(e.localizedDescription)")
     }
@@ -98,15 +98,15 @@ if SyncMonitor.shared.syncError {
     if let e = SyncMonitor.shared.exportError {
         print("Export is broken - your changes aren't being saved! \(e.localizedDescription)")
     }
-} else if SyncMonitor.shared.notSyncing {
+} else if SyncMonitor.shared.isNotSyncing {
     print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
 }
 ```
 
- `notSyncing` is a special property that tells you when `SyncMonitor` has noticed that `NSPersistentCloudKitContainer` reported that
+ `isNotSyncing` is a special property that tells you when `SyncMonitor` has noticed that `NSPersistentCloudKitContainer` reported that
 its "setup" event completed successfully, but that no "import" event was started, and no errors were reported. This can happen, for example,
 if the OS has presented a "please re-enter your password" notification/popup (in which case, CloudKit consider's the user's account
-"available", but NSPersistentCloudKitContainer won't actually be able to sync). `notSyncing`, like `isBroken`, take things like network
+"available", but NSPersistentCloudKitContainer won't actually be able to sync). `isNotSyncing`, like `isBroken`, take things like network
 availability and the user's iCloud login status into account.
 
 Detecting error conditions is important because the usual "fix" for CloudKit not syncing is to delete the local database. This
