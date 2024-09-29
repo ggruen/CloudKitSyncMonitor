@@ -12,7 +12,7 @@ This SwiftUI view will display a red error image at the top of the screen if the
 import CloudKitSyncMonitor
 struct SyncStatusView: View {
     @available(iOS 15.0, *)
-    @StateObject var syncMonitor = SyncMonitor.shared
+    @StateObject private var syncMonitor = SyncMonitor.shared
 
     var body: some View {
         // Show sync status if there's a sync error 
@@ -31,7 +31,7 @@ removed):
 import CloudKitSyncMonitor
 struct SyncStatusView: View {
     @available(iOS 15.0, *)
-    @StateObject var syncMonitor = SyncMonitor.shared
+    @StateObject private var syncMonitor = SyncMonitor.shared
 
     var body: some View {
         // Show sync status 
