@@ -6,7 +6,6 @@
 //  Updated by JP Toro on 9/28/24.
 //
 
-import Combine
 import CoreData
 import Network
 import SwiftUI
@@ -107,7 +106,7 @@ public class SyncMonitor: ObservableObject {
     ///     state summary is `.accountNotAvailable`.
     /// - Otherwise, if `NSPersistentCloudKitContainer` reported an error for any event type the last time that event type ran, the state summary is
     ///     `.error`.
-    /// - Otherwise, if `isNotSyncing` is true, the state is `.isNotSyncing`.
+    /// - Otherwise, if `isNotSyncing` is true, the state is `.notSyncing`.
     /// - Otherwise, if all event types are `.notStarted`, the state is `.notStarted`.
     /// - Otherwise, if any event type is `.inProgress`, the state is `.inProgress`.
     /// - Otherwise, if all event types are `.succeeded`, the state is `.succeeded`.
@@ -374,10 +373,19 @@ public class SyncMonitor: ObservableObject {
     /// This can be helpful in diagnosing "isNotSyncing" issues or other "partial error"s from which CloudKit thinks it recovered, but didn't really.
     public private(set) var lastError: Error?
     
-    // MARK: - Listeners -
+    // MARK: - Tasks -
     
-    /// Where we store Combine cancellables for publishers we're listening to, e.g., NSPersistentCloudKitContainer's notifications.
-    private var disposables = Set<AnyCancellable>()
+    /// Task to listen to NSPersistentCloudKitContainer.eventChangedNotification
+    private var eventChangedTask: Task<Void, Never>? = nil
+    
+    /// Task to listen to .CKAccountChanged notifications with debounce
+    private var accountChangedTask: Task<Void, Never>? = nil
+    
+    /// Task for network monitoring
+    private var networkTask: Task<Void, Never>? = nil
+    
+    /// Task for iCloud account status monitoring
+    private var iCloudStatusTask: Task<Void, Never>? = nil
     
     /// Network path monitor that's used to track whether we can reach the network at all
     private let monitor = NWPathMonitor()
@@ -402,39 +410,22 @@ public class SyncMonitor: ObservableObject {
         guard listen else { return }
         
         // Monitor NSPersistentCloudKitContainer sync events
-        // Crashes on 13.7 w/o this check, even though we have @available
-        if #available(iOS 14.0, macCatalyst 14.0, *) {
-            NotificationCenter.default.publisher(for: NSPersistentCloudKitContainer.eventChangedNotification)
-                .compactMap { notification in
-                    notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
-                        as? NSPersistentCloudKitContainer.Event
-                }
-                .map { SyncEvent(from: $0) }
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] event in
-                    self?.setProperties(from: event)
-                }
-                .store(in: &disposables)
+        startListeningToSyncEvents()
+        
+        // Monitor network changes
+        networkTask = Task { [weak self] in
+            await self?.monitorNetworkChanges()
         }
         
-        // Monitor network changes using AsyncStream
-        Task {
-            await self.monitorNetworkChanges()
+        // Monitor iCloud account status
+        iCloudStatusTask = Task { [weak self] in
+            await self?.updateiCloudAccountStatus()
         }
         
         // Monitor changes to the iCloud account (e.g., login/logout)
-        Task {
-            await self.updateiCloudAccountStatus()
+        accountChangedTask = Task { [weak self] in
+            await self?.listenToAccountChanges()
         }
-        
-        NotificationCenter.default.publisher(for: .CKAccountChanged)
-            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
-            .sink { [weak self] _ in
-                Task {
-                    await self?.updateiCloudAccountStatus()
-                }
-            }
-            .store(in: &disposables)
     }
     
     /// Convenience initializer that creates a SyncMonitor with preset state values for testing or previews
@@ -459,6 +450,57 @@ public class SyncMonitor: ObservableObject {
             : .failed(started: startDate, ended: endDate, error: error)
         self.isNetworkAvailable = networkAvailable
         self.iCloudAccountStatus = iCloudAccountStatus
+    }
+    
+    /// Deinitializer to cancel all tasks
+    deinit {
+        eventChangedTask?.cancel()
+        accountChangedTask?.cancel()
+        networkTask?.cancel()
+        iCloudStatusTask?.cancel()
+    }
+    
+    // MARK: - Listeners -
+    
+    /// Starts listening to NSPersistentCloudKitContainer eventChangedNotification using async/await
+    private func startListeningToSyncEvents() {
+        eventChangedTask = Task { [weak self] in
+            guard let self = self else { return }
+            let notificationAsyncSequence = NotificationCenter.default.notifications(named: NSPersistentCloudKitContainer.eventChangedNotification, object: nil)
+            
+            // Use compactMap to extract SyncEvent and ensure it's Sendable
+            for await syncEvent in notificationAsyncSequence.compactMap({ notification -> SyncEvent? in
+                guard let cloudKitEvent = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event else {
+                    return nil
+                }
+                return SyncEvent(from: cloudKitEvent)
+            }) {
+                self.setProperties(from: syncEvent)
+            }
+        }
+    }
+    
+    /// Listens to .CKAccountChanged notifications with debounce
+    private func listenToAccountChanges() async {
+        let notificationAsyncSequence = NotificationCenter.default.notifications(named: .CKAccountChanged, object: nil)
+            .map { _ in () }
+        
+        var debounceTask: Task<Void, Never>? = nil
+        let debounceInterval: UInt64 = 500_000_000 // 500 milliseconds in nanoseconds
+        
+        for await _ in notificationAsyncSequence {
+            // Cancel any existing debounce task
+            debounceTask?.cancel()
+            
+            // Start a new debounce task
+            debounceTask = Task {
+                try? await Task.sleep(nanoseconds: debounceInterval)
+                await self.updateiCloudAccountStatus()
+            }
+        }
+        
+        // Cancel the debounce task if the loop ends
+        debounceTask?.cancel()
     }
     
     /// Monitors network changes asynchronously
@@ -532,7 +574,7 @@ public class SyncMonitor: ObservableObject {
     }
     
     /// A sync event containing the values from NSPersistentCloudKitContainer.Event that we track
-    internal struct SyncEvent {
+    internal struct SyncEvent: @unchecked Sendable {
         var type: NSPersistentCloudKitContainer.EventType
         var startDate: Date?
         var endDate: Date?
