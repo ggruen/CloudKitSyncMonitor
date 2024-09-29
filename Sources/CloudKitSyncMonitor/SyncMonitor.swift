@@ -90,7 +90,6 @@ import CloudKit
 ///         }
 ///     }
 ///
-@available(iOS 15.0, macCatalyst 15.0, OSX 12, tvOS 15.0, watchOS 8, *)
 @MainActor
 public class SyncMonitor: ObservableObject {
     /// A singleton to use
@@ -114,7 +113,7 @@ public class SyncMonitor: ObservableObject {
     ///
     /// Here's how you might use this in a SwiftUI view:
     ///
-    ///     @StateObject var syncMonitor: SyncMonitor = SyncMonitor.shared
+    ///     @StateObject private var syncMonitor: SyncMonitor = SyncMonitor.shared
     ///
     ///     Image(systemName: syncMonitor.syncStateSummary.symbolName)
     ///         .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
@@ -152,88 +151,6 @@ public class SyncMonitor: ObservableObject {
         return .unknown
     }
     
-    /// Possible values for the summary of the state of iCloud sync
-    public enum SyncSummaryStatus {
-        case noNetwork, accountNotAvailable, error, notSyncing, notStarted, inProgress, succeeded, unknown
-        
-        /// A symbol you could use to display the status
-        public var symbolName: String {
-            switch self {
-            case .noNetwork:
-                return "bolt.horizontal.icloud"
-            case .accountNotAvailable:
-                return "lock.icloud"
-            case .error:
-                return "exclamationmark.icloud"
-            case .notSyncing:
-                return "xmark.icloud"
-            case .notStarted:
-                return "bolt.horizontal.icloud"
-            case .inProgress:
-                return "arrow.clockwise.icloud"
-            case .succeeded:
-                return "icloud"
-            case .unknown:
-                return "icloud.slash"
-            }
-        }
-        
-        /// A string you could use to display the status
-        public var description: String {
-            switch self {
-            case .noNetwork:
-                return String(localized: "No network available")
-            case .accountNotAvailable:
-                return String(localized: "No iCloud account")
-            case .error:
-                return String(localized: "Error")
-            case .notSyncing:
-                return String(localized: "Not syncing to iCloud")
-            case .notStarted:
-                return String(localized: "Sync not started")
-            case .inProgress:
-                return String(localized: "Syncing...")
-            case .succeeded:
-                return String(localized: "Synced with iCloud")
-            case .unknown:
-                return String(localized: "Error")
-            }
-        }
-        
-        /// A color you could use for the symbol
-        public var symbolColor: Color {
-            switch self {
-            case .noNetwork, .accountNotAvailable, .notStarted, .inProgress:
-                return .gray
-            case .error, .notSyncing, .unknown:
-                return .red
-            case .succeeded:
-                return .green
-            }
-        }
-        
-        /// Returns true if the state indicates that sync is broken
-        public var isBroken: Bool {
-            switch self {
-            case .error, .notSyncing, .unknown:
-                return true
-            default:
-                return false
-            }
-        }
-        
-        /// Convenience accessor that returns true if a sync is in progress
-        ///
-        /// This lets you do things like `if SyncMonitor.shared.isBroken || SyncMonitor.shared.isInProgress { ... }`,
-        /// since Swift doesn't like `case` statements intermixed into if statements.
-        public var isInProgress: Bool {
-            if case .inProgress = self {
-                return true
-            }
-            return false
-        }
-    }
-  
     @available(*, deprecated, renamed: "hasSyncError")
     public var syncError: Bool { hasSyncError }
     
@@ -270,7 +187,7 @@ public class SyncMonitor: ObservableObject {
         }
         return false
     }
-  
+    
     @available(*, deprecated, renamed: "isNotSyncing")
     public var notSyncing: Bool { isNotSyncing }
     
@@ -353,159 +270,125 @@ public class SyncMonitor: ObservableObject {
     /// The state of `NSPersistentCloudKitContainer`'s "export" event
     @Published public private(set) var exportState: SyncState = .notStarted
     
+    @available(*, deprecated, renamed: "isNetworkAvailable")
+    public var networkAvailable: Bool? { isNetworkAvailable }
+    
     /// Is the network available?
     ///
     /// This is true if the network is available in any capacity (Wi-Fi, Ethernet, cellular, carrier pigeon, etc.) - we just care if we can reach iCloud.
     @Published public private(set) var isNetworkAvailable: Bool? = nil
     
-    @Published public private(set) var isLoggedIntoIcloud: Bool? = nil
-    
     /// The current status of the user's iCloud account - updated automatically if they change it
     @Published public private(set) var iCloudAccountStatus: CKAccountStatus?
     
+    @available(*, deprecated, renamed: "iCloudAccountStatusError")
+    public var iCloudAccountStatusUpdateError: Error? { iCloudAccountStatusError }
+    
     /// If an error was encountered when retrieving the user's account status, this will be non-nil
-    public private(set) var iCloudAccountStatusUpdateError: Error?
+    public private(set) var iCloudAccountStatusError: Error?
     
     // MARK: - Diagnosis properties -
     
-    /// Contains the last Error encountered.
+    @available(*, deprecated, renamed: "lastSyncError")
+    public var lastError: Error? { lastSyncError }
+    
+    /// Contains the last sync Error encountered.
     ///
-    /// This can be helpful in diagnosing "isNotSyncing" issues or other "partial error"s from which CloudKit thinks it recovered, but didn't really.
-    public private(set) var lastError: Error?
+    /// This can be helpful in diagnosing "isNotSyncing" issues or other "partial" errors from which CloudKit thinks it recovered, but didn't really.
+    public private(set) var lastSyncError: Error?
     
-    // MARK: - Tasks -
-    
-    /// Task to listen to NSPersistentCloudKitContainer.eventChangedNotification
-    private var eventChangedTask: Task<Void, Never>? = nil
-    
-    /// Task to listen to .CKAccountChanged notifications with debounce
-    private var accountChangedTask: Task<Void, Never>? = nil
-    
-    /// Task for network monitoring
-    private var networkTask: Task<Void, Never>? = nil
-    
-    /// Task for iCloud account status monitoring
-    private var iCloudStatusTask: Task<Void, Never>? = nil
+    // MARK: - Private properties -
     
     /// Network path monitor that's used to track whether we can reach the network at all
     private let monitor = NWPathMonitor()
     
+    /// Task for managing all monitoring activities
+    private var monitoringTask: Task<Void, Error>?
+    
     // MARK: - Initializers -
     
     /// Creates a new sync monitor and sets up listeners to sync and network changes
-    public init(setupState: SyncState = .notStarted, importState: SyncState = .notStarted,
-                exportState: SyncState = .notStarted, networkAvailable: Bool? = nil,
-                iCloudAccountStatus: CKAccountStatus? = nil,
-                lastErrorText: String? = nil,
-                listen: Bool = true) {
-        self.setupState = setupState
-        self.importState = importState
-        self.exportState = exportState
-        self.isNetworkAvailable = networkAvailable
-        self.iCloudAccountStatus = iCloudAccountStatus
-        if let e = lastErrorText {
-            self.lastError = NSError(domain: e, code: 0, userInfo: nil)
-        }
-        
-        guard listen else { return }
-        
-        // Monitor NSPersistentCloudKitContainer sync events
-        startListeningToSyncEvents()
-        
-        // Monitor network changes
-        networkTask = Task { [weak self] in
-            await self?.monitorNetworkChanges()
-        }
-        
-        // Monitor iCloud account status
-        iCloudStatusTask = Task { [weak self] in
-            await self?.updateiCloudAccountStatus()
-        }
-        
-        // Monitor changes to the iCloud account (e.g., login/logout)
-        accountChangedTask = Task { [weak self] in
-            await self?.listenToAccountChanges()
-        }
+    public init() {
+        startMonitoring()
+    }
+    
+    deinit {
+        monitoringTask?.cancel()
     }
     
     /// Convenience initializer that creates a SyncMonitor with preset state values for testing or previews
     ///
-    ///     let syncMonitor = SyncMonitor(importSuccessful: false, errorText: "Cloud disrupted by weather net")
-    public init(setupSuccessful: Bool = true, importSuccessful: Bool = true, exportSuccessful: Bool = true,
-                networkAvailable: Bool = true, iCloudAccountStatus: CKAccountStatus = .available, errorText: String?) {
+    ///     let syncMonitor = SyncMonitor(isImportSuccessful: false, errorText: "Cloud disrupted by weather net")
+    public convenience init(
+        isSetupSuccessful: Bool = true,
+        isImportSuccessful: Bool = true,
+        isExportSuccessful: Bool = true,
+        isNetworkAvailable: Bool = true,
+        iCloudAccountStatus: CKAccountStatus = .available,
+        errorText: String?
+    ) {
+        self.init()  // Call the designated initializer
+        
         var error: Error? = nil
         if let errorText = errorText {
             error = NSError(domain: errorText, code: 0, userInfo: nil)
         }
         let startDate = Date(timeIntervalSinceNow: -15) // a 15 second sync
         let endDate = Date()
-        self.setupState = setupSuccessful
+        
+        self.setupState = isSetupSuccessful
             ? SyncState.succeeded(started: startDate, ended: endDate)
             : .failed(started: startDate, ended: endDate, error: error)
-        self.importState = importSuccessful
+        self.importState = isImportSuccessful
             ? .succeeded(started: startDate, ended: endDate)
             : .failed(started: startDate, ended: endDate, error: error)
-        self.exportState = exportSuccessful
+        self.exportState = isExportSuccessful
             ? .succeeded(started: startDate, ended: endDate)
             : .failed(started: startDate, ended: endDate, error: error)
-        self.isNetworkAvailable = networkAvailable
+        self.isNetworkAvailable = isNetworkAvailable
         self.iCloudAccountStatus = iCloudAccountStatus
+        self.lastSyncError = error
+        
+        // Cancel the monitoring task started by the designated initializer
+        self.monitoringTask?.cancel()
+        self.monitoringTask = nil
     }
     
-    /// Deinitializer to cancel all tasks
-    deinit {
-        eventChangedTask?.cancel()
-        accountChangedTask?.cancel()
-        networkTask?.cancel()
-        iCloudStatusTask?.cancel()
+    // MARK: - Private methods -
+    
+    private func startMonitoring() {
+        monitoringTask = Task {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { try await self.listenToSyncEvents() }
+                group.addTask { try await self.monitorNetworkChanges() }
+                group.addTask { await self.monitorICloudAccountStatus() }
+                
+                try await group.waitForAll()
+            }
+        }
     }
     
-    // MARK: - Listeners -
-    
-    /// Starts listening to NSPersistentCloudKitContainer eventChangedNotification using async/await
-    private func startListeningToSyncEvents() {
-        eventChangedTask = Task { [weak self] in
-            guard let self = self else { return }
-            let notificationAsyncSequence = NotificationCenter.default.notifications(named: NSPersistentCloudKitContainer.eventChangedNotification, object: nil)
-            
-            // Use compactMap to extract SyncEvent and ensure it's Sendable
-            for await syncEvent in notificationAsyncSequence.compactMap({ notification -> SyncEvent? in
+    /// Listens to NSPersistentCloudKitContainer eventChangedNotification using async/await
+    private func listenToSyncEvents() async throws {
+        let notificationCenter = NotificationCenter.default
+        let syncEventStream = notificationCenter.notifications(named: NSPersistentCloudKitContainer.eventChangedNotification)
+            .compactMap { notification -> SyncEvent? in
                 guard let cloudKitEvent = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event else {
                     return nil
                 }
                 return SyncEvent(from: cloudKitEvent)
-            }) {
-                self.setProperties(from: syncEvent)
             }
+        
+        for await event in syncEventStream {
+            try Task.checkCancellation()
+            processSyncEvent(event)
         }
-    }
-    
-    /// Listens to .CKAccountChanged notifications with debounce
-    private func listenToAccountChanges() async {
-        let notificationAsyncSequence = NotificationCenter.default.notifications(named: .CKAccountChanged, object: nil)
-            .map { _ in () }
-        
-        var debounceTask: Task<Void, Never>? = nil
-        let debounceInterval: UInt64 = 500_000_000 // 500 milliseconds in nanoseconds
-        
-        for await _ in notificationAsyncSequence {
-            // Cancel any existing debounce task
-            debounceTask?.cancel()
-            
-            // Start a new debounce task
-            debounceTask = Task {
-                try? await Task.sleep(nanoseconds: debounceInterval)
-                await self.updateiCloudAccountStatus()
-            }
-        }
-        
-        // Cancel the debounce task if the loop ends
-        debounceTask?.cancel()
     }
     
     /// Monitors network changes asynchronously
-    private func monitorNetworkChanges() async {
+    private func monitorNetworkChanges() async throws {
         for await path in networkPathUpdates() {
+            try Task.checkCancellation()
             #if os(watchOS)
             self.isNetworkAvailable = (path.availableInterfaces.count > 0)
             #else
@@ -513,8 +396,27 @@ public class SyncMonitor: ObservableObject {
             #endif
         }
     }
+
+    private func monitorICloudAccountStatus() async {
+        await updateICloudAccountStatus()
+        
+        // See https://stackoverflow.com/a/77072667 for .map() usage
+        let accountChangedStream = NotificationCenter.default.notifications(named: .CKAccountChanged).map { _ in () }
+        for await _ in accountChangedStream {
+            await updateICloudAccountStatus()
+        }
+    }
     
-    /// Creates an asynchronous sequence of network path updates
+    private func updateICloudAccountStatus() async {
+        do {
+            let status = try await CKContainer.default().accountStatus()
+            self.iCloudAccountStatus = status
+            self.iCloudAccountStatusError = nil
+        } catch {
+            self.iCloudAccountStatusError = error
+        }
+    }
+    
     private func networkPathUpdates() -> AsyncStream<NWPath> {
         AsyncStream { continuation in
             monitor.pathUpdateHandler = { path in
@@ -528,21 +430,8 @@ public class SyncMonitor: ObservableObject {
         }
     }
     
-    /// Checks the current status of the user's iCloud account and updates our iCloudAccountStatus property
-    private func updateiCloudAccountStatus() async {
-        do {
-            let accountStatus = try await CKContainer.default().accountStatus()
-            self.iCloudAccountStatus = accountStatus
-            self.iCloudAccountStatusUpdateError = nil
-        } catch {
-            self.iCloudAccountStatusUpdateError = error
-        }
-    }
-    
-    // MARK: - Processing NSPersistentCloudKitContainer events -
-    
     /// Set the appropriate State property (importState, exportState, setupState) based on the provided event
-    internal func setProperties(from event: SyncEvent) {
+    private func processSyncEvent(_ event: SyncEvent) {
         // First, set the SyncState for the event
         var state: SyncState = .notStarted
         // NSPersistentCloudKitContainer sends a notification when an event starts, and another when it
@@ -568,40 +457,94 @@ public class SyncMonitor: ObservableObject {
             assertionFailure("NSPersistentCloudKitContainer added a new event type.")
         }
         
-        if let error = event.error {
-            lastError = error
+        if case .failed(_, _, let error) = state, let error {
+            self.lastSyncError = error
         }
     }
     
-    /// A sync event containing the values from NSPersistentCloudKitContainer.Event that we track
-    internal struct SyncEvent: @unchecked Sendable {
-        var type: NSPersistentCloudKitContainer.EventType
-        var startDate: Date?
-        var endDate: Date?
-        var succeeded: Bool
-        var error: Error?
+    // MARK: - Helper types -
+    
+    /// Possible values for the summary of the state of iCloud sync
+    public enum SyncSummaryStatus {
+        case noNetwork, accountNotAvailable, error, notSyncing, notStarted, inProgress, succeeded, unknown
         
-        /// Creates a SyncEvent from explicitly provided values (for testing)
-        init(type: NSPersistentCloudKitContainer.EventType, startDate: Date?, endDate: Date?, succeeded: Bool,
-             error: Error?) {
-            self.type = type
-            self.startDate = startDate
-            self.endDate = endDate
-            self.succeeded = succeeded
-            self.error = error
+        /// A symbol you could use to display the status
+        public var symbolName: String {
+            switch self {
+            case .noNetwork:
+                return "bolt.horizontal.icloud"
+            case .accountNotAvailable:
+                return "lock.icloud"
+            case .error:
+                return "exclamationmark.icloud"
+            case .notSyncing:
+                return "xmark.icloud"
+            case .notStarted:
+                return "bolt.horizontal.icloud"
+            case .inProgress:
+                return "arrow.clockwise.icloud"
+            case .succeeded:
+                return "icloud"
+            case .unknown:
+                return "icloud.slash"
+            }
         }
         
-        /// Creates a SyncEvent from an NSPersistentCloudKitContainer Event
-        init(from cloudKitEvent: NSPersistentCloudKitContainer.Event) {
-            self.type = cloudKitEvent.type
-            self.startDate = cloudKitEvent.startDate
-            self.endDate = cloudKitEvent.endDate
-            self.succeeded = cloudKitEvent.succeeded
-            self.error = cloudKitEvent.error
+        /// A string you could use to display the status
+        public var description: String {
+            switch self {
+            case .noNetwork:
+                return String(localized: "No network available")
+            case .accountNotAvailable:
+                return String(localized: "No iCloud account")
+            case .error:
+                return String(localized: "Error")
+            case .notSyncing:
+                return String(localized: "Not syncing to iCloud")
+            case .notStarted:
+                return String(localized: "Sync not started")
+            case .inProgress:
+                return String(localized: "Syncing...")
+            case .succeeded:
+                return String(localized: "Synced with iCloud")
+            case .unknown:
+                return String(localized: "Error")
+            }
+        }
+        
+        /// A color you could use for the symbol
+        public var symbolColor: Color {
+            switch self {
+            case .noNetwork, .accountNotAvailable, .notStarted, .inProgress:
+                return .gray
+            case .error, .notSyncing, .unknown:
+                return .red
+            case .succeeded:
+                return .green
+            }
+        }
+        
+        /// Returns true if the state indicates that sync is broken
+        public var isBroken: Bool {
+            switch self {
+            case .error, .notSyncing, .unknown:
+                return true
+            default:
+                return false
+            }
+        }
+        
+        @available(*, deprecated, renamed: "isInProgress")
+        public var inProgress: Bool { isInProgress }
+        
+        /// Convenience accessor that returns true if a sync is in progress
+        public var isInProgress: Bool {
+            if case .inProgress = self {
+                return true
+            }
+            return false
         }
     }
-    
-    // MARK: - Defining state -
     
     /// The state of a CloudKit import, export, or setup event as reported by an `NSPersistentCloudKitContainer` notification
     public enum SyncState: Equatable {
@@ -641,8 +584,8 @@ public class SyncMonitor: ObservableObject {
         /// Note that this property will report all errors, including those caused by normal things like being offline.
         /// See also `SyncMonitor.importError` and `SyncMonitor.exportError` for more intelligent error reporting.
         var error: Error? {
-            if case .failed(_, _, let error) = self, let e = error {
-                return e
+            if case .failed(_, _, let error) = self, let error {
+                return error
             }
             return nil
         }
@@ -678,6 +621,24 @@ public class SyncMonitor: ObservableObject {
             default:
                 return false
             }
+        }
+    }
+    
+    /// A sync event containing the values from NSPersistentCloudKitContainer.Event that we track
+    internal struct SyncEvent {
+        var type: NSPersistentCloudKitContainer.EventType
+        var startDate: Date?
+        var endDate: Date?
+        var succeeded: Bool
+        var error: Error?
+        
+        /// Creates a SyncEvent from an NSPersistentCloudKitContainer Event
+        init(from cloudKitEvent: NSPersistentCloudKitContainer.Event) {
+            self.type = cloudKitEvent.type
+            self.startDate = cloudKitEvent.startDate
+            self.endDate = cloudKitEvent.endDate
+            self.succeeded = cloudKitEvent.succeeded
+            self.error = cloudKitEvent.error
         }
     }
 }
