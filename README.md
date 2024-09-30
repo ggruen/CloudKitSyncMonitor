@@ -16,7 +16,7 @@ struct SyncStatusView: View {
 
     var body: some View {
         // Show sync status if there's a sync error 
-         if #available(iOS 15.0, *), syncMonitor.syncStateSummary.isBroken {
+         if syncMonitor.syncStateSummary.isBroken {
              Image(systemName: syncMonitor.syncStateSummary.symbolName)
                  .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
          }
