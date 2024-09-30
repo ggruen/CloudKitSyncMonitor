@@ -67,7 +67,7 @@ The `CloudKitSyncMonitor` package provides a class called `SyncMonitor`, which y
 `SyncMonitor.shared`.
 
 `SyncMonitor` subscribes to notifications from relevant services (e.g. `NSPersistentCloudKitContainer`,
-`CKContainer`, and `NWPathMonitor`), and uses them to update its properties, which are then published via `Combine`.
+`CKContainer`, and `NWPathMonitor`), and uses them to update its properties.
 
 `SyncMonitor` is designed to give you different levels of detail based on how much information you want.
 
