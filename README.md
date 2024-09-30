@@ -105,7 +105,7 @@ if SyncMonitor.shared.hasSyncError {
  `isNotSyncing` is a special property that tells you when `SyncMonitor` has noticed that `NSPersistentCloudKitContainer` reported that
 its "setup" event completed successfully, but that no "import" event was started, and no errors were reported. This can happen, for example,
 if the OS has presented a "please re-enter your password" notification/popup (in which case, CloudKit consider's the user's account
-"available", but NSPersistentCloudKitContainer won't actually be able to sync). `isNotSyncing`, like `isBroken`, take things like network
+"available", but `NSPersistentCloudKitContainer` won't actually be able to sync). `isNotSyncing`, like `isBroken`, take things like network
 availability and the user's iCloud login status into account.
 
 Detecting error conditions is important because the usual "fix" for CloudKit not syncing is to delete the local database. This
