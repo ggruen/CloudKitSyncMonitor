@@ -10,6 +10,7 @@ This SwiftUI view will display a red error image at the top of the screen if the
 
 ```swift
 import CloudKitSyncMonitor
+
 struct SyncStatusView: View {
     
     @StateObject private var syncMonitor = SyncMonitor.shared
@@ -29,6 +30,7 @@ removed):
 
 ```swift
 import CloudKitSyncMonitor
+
 struct SyncStatusView: View {
     
     @StateObject private var syncMonitor = SyncMonitor.shared
@@ -44,7 +46,7 @@ struct SyncStatusView: View {
 You could change the if clause to this to display an icon only when a sync is in progress or there's an error:
 
 ```swift
-if syncMonitor.syncStateSummary.isBroken || syncMonitor.syncStateSummary.inProgress {
+if syncMonitor.syncStateSummary.isBroken || syncMonitor.syncStateSummary.isInProgress {
     Image(systemName: syncMonitor.syncStateSummary.symbolName)
         .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
 }
