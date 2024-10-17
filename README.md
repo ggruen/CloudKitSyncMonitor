@@ -10,13 +10,14 @@ This SwiftUI view will display a red error image at the top of the screen if the
 
 ```swift
 import CloudKitSyncMonitor
+
 struct SyncStatusView: View {
-    @available(iOS 15.0, *)
+    
     @StateObject private var syncMonitor = SyncMonitor.shared
 
     var body: some View {
         // Show sync status if there's a sync error 
-         if #available(iOS 15.0, *), syncMonitor.syncStateSummary.isBroken {
+         if syncMonitor.syncStateSummary.isBroken {
              Image(systemName: syncMonitor.syncStateSummary.symbolName)
                  .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
          }
@@ -29,16 +30,15 @@ removed):
 
 ```swift
 import CloudKitSyncMonitor
+
 struct SyncStatusView: View {
-    @available(iOS 15.0, *)
+    
     @StateObject private var syncMonitor = SyncMonitor.shared
 
     var body: some View {
         // Show sync status 
-        if #available(iOS 15.0, *) {
-            Image(systemName: syncMonitor.syncStateSummary.symbolName)
-                .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
-        }
+        Image(systemName: syncMonitor.syncStateSummary.symbolName)
+            .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
     }
 }
 ```
@@ -46,8 +46,7 @@ struct SyncStatusView: View {
 You could change the if clause to this to display an icon only when a sync is in progress or there's an error:
 
 ```swift
-if #available(iOS 15.0, *),
-    (syncMonitor.syncStateSummary.isBroken || syncMonitor.syncStateSummary.inProgress) {
+if syncMonitor.syncStateSummary.isBroken || syncMonitor.syncStateSummary.isInProgress {
     Image(systemName: syncMonitor.syncStateSummary.symbolName)
         .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
 }
@@ -56,7 +55,7 @@ if #available(iOS 15.0, *),
 Or check for specific states:
 
 ```swift
-if #available(iOS 15.0, *), case .accountNotAvailable = syncMonitor.syncStateSummary {
+if case .accountNotAvailable = syncMonitor.syncStateSummary {
     Text("Hey, log into your iCloud account if you want to sync")
 }
 ```
@@ -68,7 +67,7 @@ The `CloudKitSyncMonitor` package provides a class called `SyncMonitor`, which y
 `SyncMonitor.shared`.
 
 `SyncMonitor` subscribes to notifications from relevant services (e.g. `NSPersistentCloudKitContainer`,
-`CKContainer`, and `NWPathMonitor`), and uses them to update its properties, which are then published via `Combine`.
+`CKContainer`, and `NWPathMonitor`), and uses them to update its properties.
 
 `SyncMonitor` is designed to give you different levels of detail based on how much information you want.
 
@@ -106,7 +105,7 @@ if SyncMonitor.shared.hasSyncError {
  `isNotSyncing` is a special property that tells you when `SyncMonitor` has noticed that `NSPersistentCloudKitContainer` reported that
 its "setup" event completed successfully, but that no "import" event was started, and no errors were reported. This can happen, for example,
 if the OS has presented a "please re-enter your password" notification/popup (in which case, CloudKit consider's the user's account
-"available", but NSPersistentCloudKitContainer won't actually be able to sync). `isNotSyncing`, like `isBroken`, take things like network
+"available", but `NSPersistentCloudKitContainer` won't actually be able to sync). `isNotSyncing`, like `isBroken`, take things like network
 availability and the user's iCloud login status into account.
 
 Detecting error conditions is important because the usual "fix" for CloudKit not syncing is to delete the local database. This
