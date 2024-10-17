@@ -137,6 +137,7 @@ if syncMonitor.hasSyncError {
 ### Display Error Status
 
 ```swift
+import SwiftUI
 import CloudKitSyncMonitor
 
 struct SyncStatusView: View {
@@ -155,6 +156,7 @@ struct SyncStatusView: View {
 ### Display Current Sync State
 
 ```swift
+import SwiftUI
 import CloudKitSyncMonitor
 
 struct SyncStatusView: View {
