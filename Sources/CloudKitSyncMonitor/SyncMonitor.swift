@@ -92,7 +92,7 @@ import CloudKit
 ///
 @MainActor
 public class SyncMonitor: ObservableObject {
-    /// A singleton to use
+    /// The default sync monitor.
     public static let `default` = SyncMonitor()
     
     @available(*, deprecated, renamed: "default")
