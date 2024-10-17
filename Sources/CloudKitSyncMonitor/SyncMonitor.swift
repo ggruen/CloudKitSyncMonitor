@@ -356,9 +356,8 @@ public class SyncMonitor: ObservableObject {
     
     /// Ensures that the shared instance of `SyncMonitor` is initialized.
     ///
-    /// This method initializes the shared instance, if uninitialized, starting the process of
-    /// setting up event listeners, monitoring network changes, and checking iCloud account status.
-    /// Call this method as early as possible to help ensure status properties are not `nil` when first checked.
+    /// This method triggers the setup of event listeners, network monitoring, and iCloud account status checks for `shared`.
+    /// Call this method as early as possible to help ensure `shared` accurately reflects the system's status when first accessed.
     public static func configure() {
         _ = shared
     }
