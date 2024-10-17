@@ -13,7 +13,7 @@ import CloudKitSyncMonitor
 
 struct SyncStatusView: View {
     
-    @StateObject private var syncMonitor = SyncMonitor.shared
+    @StateObject private var syncMonitor = SyncMonitor.default
 
     var body: some View {
         // Show sync status if there's a sync error 
@@ -33,7 +33,7 @@ import CloudKitSyncMonitor
 
 struct SyncStatusView: View {
     
-    @StateObject private var syncMonitor = SyncMonitor.shared
+    @StateObject private var syncMonitor = SyncMonitor.default
 
     var body: some View {
         // Show sync status 
@@ -64,7 +64,7 @@ if case .accountNotAvailable = syncMonitor.syncStateSummary {
 to be "broken". e.g. if the user is on an airplane, or not logged into iCloud, `CloudKitSyncMonitor` doesn't consider sync to be `isBroken`.
 
 The `CloudKitSyncMonitor` package provides a class called `SyncMonitor`, which you can use as a singleton in your app via
-`SyncMonitor.shared`. **Call `SyncMonitor.shared.configure()` early in your app to promptly set up event listeners, network monitoring, and iCloud account status checks.**
+`SyncMonitor.default`. **Call `SyncMonitor.default.configure()` early in your app to promptly set up event listeners, network monitoring, and iCloud account status checks.**
 
 `SyncMonitor` subscribes to notifications from relevant services (e.g. `NSPersistentCloudKitContainer`,
 `CKContainer`, and `NWPathMonitor`), and uses them to update its properties.
@@ -87,17 +87,17 @@ This code will detect if there's a sync issue that your user, or your app, needs
 
 ```swift
 // If true, either setupError, importError or exportError will contain an error
-if SyncMonitor.shared.hasSyncError {
-    if let e = SyncMonitor.shared.setupError {
+if SyncMonitor.default.hasSyncError {
+    if let e = SyncMonitor.default.setupError {
         print("Unable to set up iCloud sync, changes won't be saved! \(e.localizedDescription)")
     }
-    if let e = SyncMonitor.shared.importError {
+    if let e = SyncMonitor.default.importError {
         print("Import is broken: \(e.localizedDescription)")
     }
-    if let e = SyncMonitor.shared.exportError {
+    if let e = SyncMonitor.default.exportError {
         print("Export is broken - your changes aren't being saved! \(e.localizedDescription)")
     }
-} else if SyncMonitor.shared.isNotSyncing {
+} else if SyncMonitor.default.isNotSyncing {
     print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
 }
 ```
@@ -127,9 +127,9 @@ fileprivate var dateFormatter: DateFormatter = {
     return dateFormatter
 }()
 
-print("Setup state: \(stateText(for: SyncMonitor.shared.setupState))")
-print("Import state: \(stateText(for: SyncMonitor.shared.importState))")
-print("Export state: \(stateText(for: SyncMonitor.shared.exportState))")
+print("Setup state: \(stateText(for: SyncMonitor.default.setupState))")
+print("Import state: \(stateText(for: SyncMonitor.default.importState))")
+print("Export state: \(stateText(for: SyncMonitor.default.exportState))")
 
 /// Returns a user-displayable text description of the sync state
 func stateText(for state: SyncMonitor.SyncState) -> String {

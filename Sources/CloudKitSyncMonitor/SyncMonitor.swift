@@ -20,17 +20,17 @@ import CloudKit
 /// Here are the basics:
 ///
 ///     // If true, either setupError, importError or exportError will contain an error
-///     if SyncMonitor.shared.hasSyncError {
-///         if let e = SyncMonitor.shared.setupError {
-///             print("Unable to set up iCloud sync, changes won't be saved! \(e.localizedDescription)")
+///     if SyncMonitor.default.hasSyncError {
+///         if let error = SyncMonitor.default.setupError {
+///             print("Unable to set up iCloud sync, changes won't be saved! \(error.localizedDescription)")
 ///         }
-///         if let e = SyncMonitor.shared.importError {
-///             print("Import is broken: \(e.localizedDescription)")
+///         if let error = SyncMonitor.default.importError {
+///             print("Import is broken: \(error.localizedDescription)")
 ///         }
-///         if let e = SyncMonitor.shared.exportError {
-///             print("Export is broken - your changes aren't being saved! \(e.localizedDescription)")
+///         if let error = SyncMonitor.default.exportError {
+///             print("Export is broken - your changes aren't being saved! \(error.localizedDescription)")
 ///         }
-///     } else if SyncMonitor.shared.isNotSyncing {
+///     } else if SyncMonitor.default.isNotSyncing {
 ///         print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
 ///     }
 ///
@@ -43,9 +43,9 @@ import CloudKit
 ///
 /// *Some example code to use in SwiftUI views*
 ///
-/// First, observe the shared syncmonitor instance so your view will update if the state changes:
+/// First, observe the shared `SyncMonitor` instance so your view will update if the state changes:
 ///
-///     @StateObject private var syncMonitor: SyncMonitor = SyncMonitor.shared
+///     @StateObject private var syncMonitor: SyncMonitor = SyncMonitor.default
 ///
 /// Show a sync status icon:
 ///
@@ -93,7 +93,10 @@ import CloudKit
 @MainActor
 public class SyncMonitor: ObservableObject {
     /// A singleton to use
-    public static let shared = SyncMonitor()
+    public static let `default` = SyncMonitor()
+    
+    @available(*, deprecated, renamed: "default")
+    public static var shared: SyncMonitor { `default` }
     
     // MARK: - Summary properties -
     
@@ -113,7 +116,7 @@ public class SyncMonitor: ObservableObject {
     ///
     /// Here's how you might use this in a SwiftUI view:
     ///
-    ///     @StateObject private var syncMonitor: SyncMonitor = SyncMonitor.shared
+    ///     @StateObject private var syncMonitor: SyncMonitor = SyncMonitor.default
     ///
     ///     Image(systemName: syncMonitor.syncStateSummary.symbolName)
     ///         .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
@@ -160,15 +163,15 @@ public class SyncMonitor: ObservableObject {
     /// If `hasSyncError` is true, then either `setupError`, `importError` or `exportError` (or any combination of them)) will contain an error object.
     ///
     ///     // If true, either setupError, importError or exportError will contain an error
-    ///     if SyncMonitor.shared.hasSyncError {
-    ///         if let e = SyncMonitor.shared.setupError {
-    ///             print("Unable to set up iCloud sync, changes won't be saved! \(e.localizedDescription)")
+    ///     if SyncMonitor.default.hasSyncError {
+    ///         if let error = SyncMonitor.default.setupError {
+    ///             print("Unable to set up iCloud sync, changes won't be saved! \(error.localizedDescription)")
     ///         }
-    ///         if let e = SyncMonitor.shared.importError {
-    ///             print("Import is broken: \(e.localizedDescription)")
+    ///         if let error = SyncMonitor.default.importError {
+    ///             print("Import is broken: \(error.localizedDescription)")
     ///         }
-    ///         if let e = SyncMonitor.shared.exportError {
-    ///             print("Export is broken - your changes aren't being saved! \(e.localizedDescription)")
+    ///         if let error = SyncMonitor.default.exportError {
+    ///             print("Export is broken - your changes aren't being saved! \(error.localizedDescription)")
     ///         }
     ///     }
     ///
@@ -200,9 +203,9 @@ public class SyncMonitor: ObservableObject {
     /// displaying an error graphic to the user, e.g. `Image(systemName: "xmark.icloud")` if `isNotSyncing` is `true`, but not necessarily for
     /// programmatic action (unless isNotSyncing stays true for more than a few seconds).
     ///
-    ///     if SyncMonitor.shared.hasSyncError {
+    ///     if SyncMonitor.default.hasSyncError {
     ///         // Act on error
-    ///     } else if SyncMonitor.shared.isNotSyncing {
+    ///     } else if SyncMonitor.default.isNotSyncing {
     ///         print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
     ///     }
     ///
@@ -242,7 +245,7 @@ public class SyncMonitor: ObservableObject {
     
     /// If not `nil`, there is a real problem with CloudKit's export
     ///
-    ///     if let error = SyncMonitor.shared.exportError {
+    ///     if let error = SyncMonitor.default.exportError {
     ///         print("Something needs to be fixed: \(error.localizedDescription)")
     ///     }
     ///
@@ -316,9 +319,11 @@ public class SyncMonitor: ObservableObject {
     }
     
     #if DEBUG
-    /// Convenience initializer that creates a SyncMonitor with preset state values for testing or previews
-    ///
-    ///     let syncMonitor = SyncMonitor(isImportSuccessful: false, errorText: "Cloud disrupted by weather net")
+    /// Convenience initializer that creates a `SyncMonitor` with preset state values for testing or previews
+    ///  - Warning: Available only in DEBUG mode.
+    /// ```
+    /// let syncMonitor = SyncMonitor(isImportSuccessful: false, errorText: "Cloud disrupted by weather net")
+    /// ```
     public convenience init(
         isSetupSuccessful: Bool = true,
         isImportSuccessful: Bool = true,
@@ -360,7 +365,7 @@ public class SyncMonitor: ObservableObject {
     /// This method triggers the setup of event listeners, network monitoring, and iCloud account status checks for `shared`.
     /// Call this method as early as possible to help ensure `shared` accurately reflects the system's status when first accessed.
     public func configure() {
-        _ = SyncMonitor.shared
+        _ = SyncMonitor.default
     }
     
     // MARK: - Private methods -
@@ -584,7 +589,7 @@ public class SyncMonitor: ObservableObject {
         /// This is the main property you'll want to use to detect an error, as it will be `nil` if the sync is incomplete or succeeded, and will contain
         /// an `Error` if the sync finished and failed.
         ///
-        ///     if let error = SyncMonitor.shared.exportState.error {
+        ///     if let error = SyncMonitor.default.exportState.error {
         ///         print("Sync failed: \(error.localizedDescription)")
         ///     }
         ///
