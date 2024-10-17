@@ -134,7 +134,7 @@ public class SyncMonitor: ObservableObject {
     ///
     public var syncStateSummary: SyncSummaryStatus {
         if isNetworkAvailable == false { return .noNetwork }
-        guard case .available = iCloudAccountStatus else { return .accountNotAvailable }
+        if let iCloudAccountStatus, iCloudAccountStatus != .available { return .accountNotAvailable }
         if hasSyncError { return .error }
         if isNotSyncing { return .notSyncing }
         if case .notStarted = importState, case .notStarted = exportState, case .notStarted = setupState {
@@ -354,6 +354,15 @@ public class SyncMonitor: ObservableObject {
         self.monitoringTask = nil
     }
     
+    /// Ensures that the shared instance of `SyncMonitor` is initialized.
+    ///
+    /// This method initializes the shared instance, if uninitialized, starting the process of
+    /// setting up event listeners, monitoring network changes, and checking iCloud account status.
+    /// Call this method as early as possible to help ensure status properties are not `nil` when first checked.
+    public static func configure() {
+        _ = shared
+    }
+    
     // MARK: - Private methods -
     
     private func startMonitoring() {
@@ -398,8 +407,6 @@ public class SyncMonitor: ObservableObject {
     }
 
     private func monitorICloudAccountStatus() async {
-        await updateICloudAccountStatus()
-        
         // See https://stackoverflow.com/a/77072667 for .map() usage
         let accountChangedStream = NotificationCenter.default.notifications(named: .CKAccountChanged).map { _ in () }
         for await _ in accountChangedStream {
