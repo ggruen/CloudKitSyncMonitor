@@ -360,7 +360,7 @@ public class SyncMonitor: ObservableObject {
     // MARK: - Initializers -
     
     private init() {
-        startMonitoring()
+        _startMonitoring()
     }
     
     deinit {
@@ -429,17 +429,17 @@ public class SyncMonitor: ObservableObject {
     }
     #endif
     
-    /// Ensures that the shared instance of `SyncMonitor` is initialized.
+    /// Ensures that the shared instance of `SyncMonitor` is initialized and monitoring.
     ///
-    /// This method triggers the setup of event listeners, network monitoring, and iCloud account status checks for `default`.
+    /// This method manually triggers the setup of event listeners, network monitoring, and iCloud account status.
     /// Call this method as early as possible to help ensure `default` accurately reflects the system's status when first accessed.
-    public func configure() {
+    public func startMonitoring() {
         _ = SyncMonitor.default
     }
     
     // MARK: - Private methods -
     
-    private func startMonitoring() {
+    private func _startMonitoring() {
         monitoringTask = Task {
             try await withThrowingTaskGroup(of: Void.self) { group in
                 group.addTask { try await self.listenToSyncEvents() }
