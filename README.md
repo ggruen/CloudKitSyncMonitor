@@ -86,18 +86,20 @@ You can tell if there's a sync problem by checking the `hasSyncError` and `isNot
 This code will detect if there's a sync issue that your user, or your app, needs to do something about:
 
 ```swift
+private let syncMonitor = SyncMonitor.default
+
 // If true, either setupError, importError or exportError will contain an error
-if SyncMonitor.default.hasSyncError {
-    if let e = SyncMonitor.default.setupError {
-        print("Unable to set up iCloud sync, changes won't be saved! \(e.localizedDescription)")
+if syncMonitor.hasSyncError {
+    if let error = syncMonitor.setupError {
+        print("Unable to set up iCloud sync, changes won't be saved! \(error.localizedDescription)")
     }
-    if let e = SyncMonitor.default.importError {
-        print("Import is broken: \(e.localizedDescription)")
+    if let error = syncMonitor.importError {
+        print("Import is broken: \(error.localizedDescription)")
     }
-    if let e = SyncMonitor.default.exportError {
-        print("Export is broken - your changes aren't being saved! \(e.localizedDescription)")
+    if let error = syncMonitor.exportError {
+        print("Export is broken - your changes aren't being saved! \(error.localizedDescription)")
     }
-} else if SyncMonitor.default.isNotSyncing {
+} else if syncMonitor.isNotSyncing {
     print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
 }
 ```
