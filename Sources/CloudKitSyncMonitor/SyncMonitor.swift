@@ -11,58 +11,50 @@ import Network
 import SwiftUI
 import CloudKit
 
-/// An object that provides the current state of `NSPersistentCloudKitContainer`'s sync.
+/// A class that monitors and reports the current state of `NSPersistentCloudKitContainer` synchronization.
 ///
-/// This class is overkill when it comes to reporting on iCloud sync. Normally, `NSPersistentCloudKitContainer` will sync happily and you can
-/// leave it alone. Every once in a while, however, it will hit an error that makes it stop syncing. This is what you really want to detect, because, since iCloud
-/// is the "source of truth" for your `NSPersistentCloudKitContainer` data, a sync failure can mean data loss.
+/// `SyncMonitor` provides a comprehensive overview of the iCloud sync status for your Core Data stack using `NSPersistentCloudKitContainer`. It tracks setup, import, and export events, network availability, and iCloud account status to give you detailed insights into the sync process.
 ///
-/// Here are the basics:
+/// While `NSPersistentCloudKitContainer` typically handles synchronization automatically, `SyncMonitor` is particularly useful for detecting and responding to sync failures, which could potentially lead to data loss if not addressed.
+///
+/// - Important: Call `SyncMonitor.default.startMonitoring()` early in your app to promptly set up monitoring. Otherwise, monitoring will begin when `SyncMonitor.default` is first accessed, which could lead to inaccurate state information if properties are checked right away.
+///
+/// - Note: iCloud is considered the "source of truth" for `NSPersistentCloudKitContainer` data. A sync failure, especially during export, may result in local changes not being propagated to iCloud.
+///
+/// # Usage
+///
 /// ```swift
-/// private let syncMonitor = SyncMonitor.default
-///
-/// // If true, either setupError, importError or exportError will contain an error
-/// if syncMonitor.hasSyncError {
-///     if let error = syncMonitor.setupError {
-///         print("Unable to set up iCloud sync, changes won't be saved! \(error.localizedDescription)")
+/// if SyncMonitor.default.hasSyncError {
+///     if let error = SyncMonitor.default.setupError {
+///         print("iCloud sync setup failed: \(error.localizedDescription)")
 ///     }
-///     if let error = syncMonitor.importError {
-///         print("Import is broken: \(error.localizedDescription)")
+///     if let error = SyncMonitor.default.importError {
+///         print("iCloud import failed: \(error.localizedDescription)")
 ///     }
-///     if let error = syncMonitor.exportError {
-///         print("Export is broken - your changes aren't being saved! \(error.localizedDescription)")
+///     if let error = SyncMonitor.default.exportError {
+///         print("iCloud export failed: \(error.localizedDescription)")
 ///     }
-/// } else if syncMonitor.isNotSyncing {
-///     print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
+/// } else if SyncMonitor.default.isNotSyncing {
+///     print("Sync should be working, but isn't. Check for system-level issues.")
 /// }
 /// ```
 ///
-/// `hasSyncError` and `isNotSyncing`, together, tell you if there's a problem that `NSPersistentCloudKitContainer` has announced or not announced
-/// (respectively).
+/// # SwiftUI Integration
 ///
-/// The `setupError`, `importError`, and `exportError` properties can give you the reported error. Digging deeper, `setupState`, `importState`,
-/// and `exportState` give you the state of each type of `NSPersistentCloudKitContainer` event in a nice little `SyncState` enum with associated
-/// values that let you get even more granular, e.g. to find whether each type of event is in progress, succeeded, or failed, the start and end time of the event, and
-/// any error reported if the event failed.
-///
-/// # Example Usage
-///
-/// ## Observing SyncMonitor in SwiftUI
-///
-/// First, observe the shared `SyncMonitor` instance so your view will update if the state changes:
+/// Observe `SyncMonitor` in your SwiftUI views:
 ///
 /// ```swift
 /// @StateObject private var syncMonitor = SyncMonitor.default
 /// ```
 ///
-/// ## Showing a sync status icon
+/// Display a sync status icon:
 ///
 /// ```swift
 /// Image(systemName: syncMonitor.syncStateSummary.symbolName)
 ///     .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
 /// ```
 ///
-/// ## Only showing an icon if there's a sync error
+/// Show an icon only for sync errors:
 ///
 /// ```swift
 /// if syncMonitor.syncStateSummary.isBroken {
@@ -71,7 +63,7 @@ import CloudKit
 /// }
 /// ```
 ///
-/// ## Only showing an icon when syncing is happening
+/// Display an icon during active syncing:
 ///
 /// ```swift
 /// if syncMonitor.syncStateSummary.isInProgress {
@@ -80,9 +72,9 @@ import CloudKit
 /// }
 /// ```
 ///
-/// ## Showing a detailed error reporting graphic
+/// # Detailed Error Reporting
 ///
-/// This shows which type(s) of events are failing:
+/// For a more granular view of sync status:
 ///
 /// ```swift
 /// Group {
@@ -109,7 +101,7 @@ import CloudKit
 /// ```
 @MainActor
 public class SyncMonitor: ObservableObject {
-    /// The default sync monitor.
+    /// The shared instance of `SyncMonitor`.
     public static let `default` = SyncMonitor()
     
     @available(*, deprecated, renamed: "default")
@@ -117,52 +109,21 @@ public class SyncMonitor: ObservableObject {
     
     // MARK: - Summary properties -
     
-    /// Returns an overview of the state of sync, which you could use to display a summary icon
+    /// A summary of the overall sync state.
     ///
-    /// The general sync state is determined as follows:
-    /// - If the network isn't available, the state summary is `.noNetwork`.
-    /// - Otherwise, if the iCloud account isn't available (e.g., they're not logged in or have disabled iCloud for the app in Settings or System Preferences), the
-    ///   state summary is `.accountNotAvailable`.
-    /// - Otherwise, if `NSPersistentCloudKitContainer` reported an error for any event type the last time that event type ran, the state summary is
-    ///   `.error`.
-    /// - Otherwise, if `isNotSyncing` is true, the state is `.notSyncing`.
-    /// - Otherwise, if all event types are `.notStarted`, the state is `.notStarted`.
-    /// - Otherwise, if any event type is `.inProgress`, the state is `.inProgress`.
-    /// - Otherwise, if all event types are `.succeeded`, the state is `.succeeded`.
-    /// - Otherwise, the state is `.unknown`.
+    /// This property provides a high-level overview of the current sync status, which can be used to display a summary icon or message in your user interface.
     ///
-    /// - Returns: A `SyncStateSummary` enum value representing the current state of sync.
+    /// The sync state summary is determined as follows:
+    /// - `.noNetwork`: The network is unavailable.
+    /// - `.accountNotAvailable`: The iCloud account is not available (e.g., user not logged in or iCloud is disabled for the app).
+    /// - `.error`: An error was reported for any event type during the last sync attempt.
+    /// - `.notSyncing`: Sync should be working but isn't (see `isNotSyncing`).
+    /// - `.notStarted`: All event types are in the `.notStarted` state.
+    /// - `.inProgress`: At least one event type is in the `.inProgress` state.
+    /// - `.succeeded`: All event types are in the `.succeeded` state.
+    /// - `.unknown`: The sync state doesn't match any of the above conditions.
     ///
-    /// - Note: This property is useful for providing a high-level overview of the sync state in your user interface.
-    ///
-    /// # Example Usage
-    ///
-    /// Here's how you might use this in a SwiftUI view:
-    ///
-    /// ```swift
-    /// @StateObject private var syncMonitor = SyncMonitor.default
-    ///
-    /// Image(systemName: syncMonitor.syncStateSummary.symbolName)
-    ///     .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
-    /// ```
-    ///
-    /// Or maybe you only want to show errors:
-    ///
-    /// ```swift
-    /// if syncMonitor.syncStateSummary.isBroken {
-    ///     Image(systemName: syncMonitor.syncStateSummary.symbolName)
-    ///         .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
-    /// }
-    /// ```
-    ///
-    /// Or, only show an icon when syncing is happening:
-    ///
-    /// ```swift
-    /// if syncMonitor.syncStateSummary.isInProgress {
-    ///     Image(systemName: syncMonitor.syncStateSummary.symbolName)
-    ///         .foregroundColor(syncMonitor.syncStateSummary.symbolColor)
-    /// }
-    /// ```
+    /// - Returns: A `SyncSummaryStatus` enum value representing the current state of sync.
     public var syncStateSummary: SyncSummaryStatus {
         if isNetworkAvailable == false { return .noNetwork }
         if let iCloudAccountStatus, iCloudAccountStatus != .available { return .accountNotAvailable }
@@ -185,38 +146,20 @@ public class SyncMonitor: ObservableObject {
     @available(*, deprecated, renamed: "hasSyncError")
     public var syncError: Bool { hasSyncError }
     
-    /// Returns true if `NSPersistentCloudKitContainer` has reported an error.
+    /// Indicates whether `NSPersistentCloudKitContainer` has reported any sync errors.
     ///
-    /// This is a convenience property that returns true if `setupError`, `importError` or `exportError` is not nil.
-    /// If `hasSyncError` is true, then either `setupError`, `importError` or `exportError` (or any combination of them) will contain an error object.
+    /// This property returns `true` if `setupError`, `importError`, or `exportError` is not `nil`.
     ///
     /// - Returns: A Boolean value indicating whether a sync error has been reported.
-    ///
-    /// - Note: `hasSyncError` being `true` means that `NSPersistentCloudKitContainer` sent a notification that included an error.
-    ///
-    /// # Example Usage
-    ///
-    /// ```swift
-    /// // If true, either setupError, importError or exportError will contain an error
-    /// if SyncMonitor.default.hasSyncError {
-    ///     if let error = SyncMonitor.default.setupError {
-    ///         print("Unable to set up iCloud sync, changes won't be saved! \(error.localizedDescription)")
-    ///     }
-    ///     if let error = SyncMonitor.default.importError {
-    ///         print("Import is broken: \(error.localizedDescription)")
-    ///     }
-    ///     if let error = SyncMonitor.default.exportError {
-    ///         print("Export is broken - your changes aren't being saved! \(error.localizedDescription)")
-    ///     }
-    /// }
-    /// ```
     public var hasSyncError: Bool {
         return setupError != nil || importError != nil || exportError != nil
     }
     
-    /// Returns `true` if there's no reason that we know of why sync shouldn't be working
+    /// Indicates whether sync should be functioning normally.
     ///
-    /// That is, the user's iCloud account status is "available", the network is available, there are no recorded sync errors, and setup is complete and succeeded.
+    /// Returns `true` if the user's iCloud account is available, the network is available, there are no recorded sync errors, and setup has completed successfully.
+    ///
+    /// - Returns: A Boolean value indicating whether sync should be operational.
     public var shouldBeSyncing: Bool {
         if case .available = iCloudAccountStatus, self.isNetworkAvailable == true, !hasSyncError,
            case .succeeded = setupState {
@@ -228,31 +171,13 @@ public class SyncMonitor: ObservableObject {
     @available(*, deprecated, renamed: "isNotSyncing")
     public var notSyncing: Bool { isNotSyncing }
     
-    /// Detects a condition in which CloudKit *should* be syncing, but isn't.
+    /// Detects a condition where CloudKit should be syncing but isn't.
     ///
-    /// `isNotSyncing` is true if `shouldBeSyncing` is true (see `shouldBeSyncing`) but `importState` is still `.notStarted`.
+    /// This property returns `true` if `shouldBeSyncing` is `true` but `importState` is still `.notStarted`.
     ///
-    /// - Note: The first thing `NSPersistentCloudKitContainer` does when the app starts is to set up, then run an import. So, `isNotSyncing` should be true for
-    ///   a very short period of time (e.g. less than a second) for the time between when setup completes and the import starts.
+    /// - Note: This condition should typically only occur briefly (less than a second) between setup completion and the start of the first import.
     ///
-    /// - Important: This property is suitable for displaying an error graphic to the user, e.g. `Image(systemName: "xmark.icloud")` if `isNotSyncing` is `true`,
-    ///   but not necessarily for programmatic action (unless `isNotSyncing` stays true for more than a few seconds).
-    ///
-    /// - Warning: `isNotSyncing` being `true` for a longer period of time may indicate a bug in `NSPersistentCloudKitContainer`. For example, if Settings on iOS
-    ///   wants the user to log in again, CloudKit might report a "partial error" when setting up, but ultimately send a notification stating that setup was successful;
-    ///   however, CloudKit will then just not sync, providing no errors. `isNotSyncing` detects this condition and those like it.
-    ///
-    /// If you see `isNotSyncing` being triggered, it's recommended to isolate the issue and file a Feedback to Apple.
-    ///
-    /// # Example Usage
-    ///
-    /// ```swift
-    /// if SyncMonitor.default.hasSyncError {
-    ///     // Act on error
-    /// } else if SyncMonitor.default.isNotSyncing {
-    ///     print("Sync should be working, but isn't. Look for a badge on Settings or other possible issues.")
-    /// }
-    /// ```
+    /// - Important: If `isNotSyncing` remains `true` for an extended period, it may indicate an issue with `NSPersistentCloudKitContainer`. Consider filing a Feedback to Apple if you encounter this situation.
     public var isNotSyncing: Bool {
         if case .notStarted = importState, shouldBeSyncing {
             return true
@@ -260,13 +185,11 @@ public class SyncMonitor: ObservableObject {
         return false
     }
     
-    /// If not `nil`, there is a real problem encountered when CloudKit was trying to set itself up
+    /// The error encountered during the CloudKit setup process, if any.
     ///
-    /// This means `NSPersistentCloudKitContainer` probably won't try to do imports or exports, which means that data won't be synced. However, it's
-    /// usually caused by something that can be fixed without deleting the DB, so it usually means that sync will just be delayed, unlike exportError, which
-    /// usually requires deleting the local DB, thus losing changes.
+    /// If not `nil`, this indicates a significant problem that may prevent imports or exports from occurring, potentially leading to sync delays.
     ///
-    /// You should examine the error for the cause. You may then be able to at least report it to the user, if not automate a "fix" in your app.
+    /// - Returns: An `Error` object if there's a setup error, or `nil` if there's no error.
     public var setupError: Error? {
         if isNetworkAvailable == true, let error = setupState.error {
             return error
@@ -274,7 +197,9 @@ public class SyncMonitor: ObservableObject {
         return nil
     }
     
-    /// If not `nil`, there is a problem with CloudKit's import.
+    /// The error encountered during the CloudKit import process, if any.
+    ///
+    /// - Returns: An `Error` object if there's an import error, or `nil` if there's no error.
     public var importError: Error? {
         if isNetworkAvailable == true, let error = importState.error {
             return error
@@ -282,28 +207,11 @@ public class SyncMonitor: ObservableObject {
         return nil
     }
     
-    /// If not `nil`, there is a real problem with CloudKit's export
+    /// The error encountered during the CloudKit export process, if any.
     ///
     /// - Returns: An `Error` object if there's an export error, or `nil` if there's no error.
     ///
-    /// - Important: This property is the main reason this module exists. When `NSPersistentCloudKitContainer` "stops working",
-    ///   it's because it's hit an error from which it cannot recover. If that error happens during an export, it means your user's
-    ///   probably going to lose any changes they make (since iCloud is the "source of truth", and `NSPersistentCloudKitContainer`
-    ///   can't get their changes to iCloud).
-    ///
-    /// - Note: The key to data safety is to detect and correct the error immediately. `exportError` is designed to detect this
-    ///   unrecoverable error state the moment it happens. It specifically tests that the network is available and that an error
-    ///   was reported (including error text). This means that sync *should* be working (that is, they're online), but failed.
-    ///
-    /// - Warning: When this property is not `nil`, the user or your application will likely need to take action to correct the problem.
-    ///
-    /// # Example Usage
-    ///
-    /// ```swift
-    /// if let error = SyncMonitor.default.exportError {
-    ///     print("Something needs to be fixed: \(error.localizedDescription)")
-    /// }
-    /// ```
+    /// - Important: An export error is particularly critical as it may result in local changes not being synchronized to iCloud. Prompt detection and correction of export errors is crucial for data integrity.
     public var exportError: Error? {
         if isNetworkAvailable == true, let error = exportState.error {
             return error
@@ -313,30 +221,32 @@ public class SyncMonitor: ObservableObject {
     
     // MARK: - Specific Status Properties -
     
-    /// The state of `NSPersistentCloudKitContainer`'s "setup" event
+    /// The current state of the `NSPersistentCloudKitContainer` setup process.
     @Published public private(set) var setupState: SyncState = .notStarted
     
-    /// The state of `NSPersistentCloudKitContainer`'s "import" event
+    /// The current state of the `NSPersistentCloudKitContainer` import process.
     @Published public private(set) var importState: SyncState = .notStarted
     
-    /// The state of `NSPersistentCloudKitContainer`'s "export" event
+    /// The current state of the `NSPersistentCloudKitContainer` export process.
     @Published public private(set) var exportState: SyncState = .notStarted
     
     @available(*, deprecated, renamed: "isNetworkAvailable")
     public var networkAvailable: Bool? { isNetworkAvailable }
     
-    /// Is the network available?
+    /// Indicates whether the network is available for iCloud sync.
     ///
-    /// This is `true` if the network is available in any capacity (Wi-Fi, Ethernet, cellular, carrier pigeon, etc.) - we just care if we can reach iCloud.
+    /// - Returns: A Boolean value indicating network availability, or `nil` if the status is unknown.
     @Published public private(set) var isNetworkAvailable: Bool? = nil
     
-    /// The current status of the user's iCloud account - updated automatically if they change it
+    /// The current status of the user's iCloud account.
+    ///
+    /// This property is automatically updated if the account status changes.
     @Published public private(set) var iCloudAccountStatus: CKAccountStatus?
     
     @available(*, deprecated, renamed: "iCloudAccountStatusError")
     public var iCloudAccountStatusUpdateError: Error? { iCloudAccountStatusError }
     
-    /// If an error was encountered when retrieving the user's account status, this will be non-nil
+    /// The error encountered when attempting to retrieve the user's iCloud account status, if any.
     public private(set) var iCloudAccountStatusError: Error?
     
     // MARK: - Diagnosis properties -
@@ -344,9 +254,9 @@ public class SyncMonitor: ObservableObject {
     @available(*, deprecated, renamed: "lastSyncError")
     public var lastError: Error? { lastSyncError }
     
-    /// Contains the last sync Error encountered.
+    /// The most recent sync error encountered.
     ///
-    /// This can be helpful in diagnosing `isNotSyncing`-related issues or other "partial" errors from which CloudKit thinks it recovered, but didn't really.
+    /// This property can be useful for diagnosing issues related to `isNotSyncing` or other "partial" errors that CloudKit believes it recovered from but didn't.
     public private(set) var lastSyncError: Error?
     
     // MARK: - Private properties -
@@ -411,14 +321,14 @@ public class SyncMonitor: ObservableObject {
         let endDate = Date()
         
         self.setupState = isSetupSuccessful
-            ? SyncState.succeeded(started: startDate, ended: endDate)
-            : .failed(started: startDate, ended: endDate, error: error)
+        ? SyncState.succeeded(started: startDate, ended: endDate)
+        : .failed(started: startDate, ended: endDate, error: error)
         self.importState = isImportSuccessful
-            ? .succeeded(started: startDate, ended: endDate)
-            : .failed(started: startDate, ended: endDate, error: error)
+        ? .succeeded(started: startDate, ended: endDate)
+        : .failed(started: startDate, ended: endDate, error: error)
         self.exportState = isExportSuccessful
-            ? .succeeded(started: startDate, ended: endDate)
-            : .failed(started: startDate, ended: endDate, error: error)
+        ? .succeeded(started: startDate, ended: endDate)
+        : .failed(started: startDate, ended: endDate, error: error)
         self.isNetworkAvailable = isNetworkAvailable
         self.iCloudAccountStatus = iCloudAccountStatus
         self.lastSyncError = error
@@ -429,10 +339,9 @@ public class SyncMonitor: ObservableObject {
     }
     #endif
     
-    /// Ensures that the shared instance of `SyncMonitor` is initialized and monitoring.
+    /// Initializes and starts the shared instance of `SyncMonitor`.
     ///
-    /// This method manually triggers the setup of event listeners, network monitoring, and iCloud account status.
-    /// Call this method as early as possible to help ensure `default` accurately reflects the system's status when first accessed.
+    /// Call this method as early as possible in your app's lifecycle to ensure that `SyncMonitor.default` accurately reflects the system's status when first accessed.
     public func startMonitoring() {
         _ = SyncMonitor.default
     }
@@ -545,11 +454,11 @@ public class SyncMonitor: ObservableObject {
     
     // MARK: - Helper types -
     
-    /// Possible values for the summary of the state of iCloud sync
+    /// Represents the overall status of iCloud sync.
     public enum SyncSummaryStatus {
         case noNetwork, accountNotAvailable, error, notSyncing, notStarted, inProgress, succeeded, unknown
         
-        /// A symbol you could use to display the status
+        /// A SF Symbol name representing the current sync status.
         public var symbolName: String {
             switch self {
             case .noNetwork:
@@ -571,7 +480,7 @@ public class SyncMonitor: ObservableObject {
             }
         }
         
-        /// A string you could use to display the status
+        /// A localized description of the current sync status.
         public var description: String {
             switch self {
             case .noNetwork:
@@ -593,7 +502,7 @@ public class SyncMonitor: ObservableObject {
             }
         }
         
-        /// A color you could use for the symbol
+        /// A color suitable for displaying the status symbol.
         public var symbolColor: Color {
             switch self {
             case .noNetwork, .accountNotAvailable, .notStarted, .inProgress:
@@ -605,7 +514,7 @@ public class SyncMonitor: ObservableObject {
             }
         }
         
-        /// Returns true if the state indicates that sync is broken
+        /// Indicates whether the current state represents a broken sync state.
         public var isBroken: Bool {
             switch self {
             case .error, .notSyncing, .unknown:
@@ -618,7 +527,7 @@ public class SyncMonitor: ObservableObject {
         @available(*, deprecated, renamed: "isInProgress")
         public var inProgress: Bool { isInProgress }
         
-        /// Convenience accessor that returns true if a sync is in progress
+        /// Indicates whether a sync operation is currently in progress.
         public var isInProgress: Bool {
             if case .inProgress = self {
                 return true
@@ -627,49 +536,28 @@ public class SyncMonitor: ObservableObject {
         }
     }
     
-    /// The state of a CloudKit import, export, or setup event as reported by an `NSPersistentCloudKitContainer` notification
+    /// Represents the state of a CloudKit import, export, or setup event.
     public enum SyncState: Equatable {
-        /// No event has been reported
         case notStarted
-        
-        /// A notification with a start date was received, but it had no end date.
         case inProgress(started: Date)
-        
-        /// The last sync of this type finished and succeeded (`succeeded` was `true` in the notification from `NSPersistentCloudKitContainer`).
         case succeeded(started: Date, ended: Date)
-        
-        /// The last sync of this type finished but failed (`succeeded` was `false` in the notification from `NSPersistentCloudKitContainer`).
         case failed(started: Date, ended: Date, error: Error?)
         
-        /// Convenience property that returns true if the last sync of this type succeeded
+        /// Indicates whether the last sync of this type succeeded.
         var didSucceed: Bool {
             if case .succeeded = self { return true }
             return false
         }
         
-        /// Convenience property that returns true if the last sync of this type failed
+        /// Indicates whether the last sync of this type failed.
         var didFail: Bool {
             if case .failed = self { return true }
             return false
         }
         
-        /// Convenience property that returns the error returned if the event failed
+        /// The error returned if the event failed, or `nil` if the sync is incomplete or succeeded.
         ///
-        /// - Returns: An `Error` object if the sync failed, or `nil` if the sync is incomplete or succeeded.
-        ///
-        /// - Note: This is the main property you'll want to use to detect an error, as it will be `nil` if the sync is incomplete or succeeded, and will contain
-        ///   an `Error` if the sync finished and failed.
-        ///
-        /// - Important: This property will report all errors, including those caused by normal things like being offline.
-        ///   See also `SyncMonitor.importError` and `SyncMonitor.exportError` for more intelligent error reporting.
-        ///
-        /// # Example Usage
-        ///
-        /// ```swift
-        /// if let error = SyncMonitor.default.exportState.error {
-        ///     print("Sync failed: \(error.localizedDescription)")
-        /// }
-        /// ```
+        /// - Important: This property reports all errors, including those caused by normal conditions like being offline. For more intelligent error reporting, see `SyncMonitor.importError` and `SyncMonitor.exportError`.
         var error: Error? {
             if case .failed(_, _, let error) = self, let error {
                 return error
