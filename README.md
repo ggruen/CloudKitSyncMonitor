@@ -64,7 +64,7 @@ if case .accountNotAvailable = syncMonitor.syncStateSummary {
 to be "broken". e.g. if the user is on an airplane, or not logged into iCloud, `CloudKitSyncMonitor` doesn't consider sync to be `isBroken`.
 
 The `CloudKitSyncMonitor` package provides a class called `SyncMonitor`, which you can use as a singleton in your app via
-`SyncMonitor.shared`. **When using `SyncMonitor.shared`, call `SyncMonitor.configure()` early in your app to promptly set up event listeners, network monitoring, and iCloud account status checks.**
+`SyncMonitor.shared`. **Call `SyncMonitor.shared.configure()` early in your app to promptly set up event listeners, network monitoring, and iCloud account status checks.**
 
 `SyncMonitor` subscribes to notifications from relevant services (e.g. `NSPersistentCloudKitContainer`,
 `CKContainer`, and `NWPathMonitor`), and uses them to update its properties.

@@ -307,8 +307,7 @@ public class SyncMonitor: ObservableObject {
     
     // MARK: - Initializers -
     
-    /// Creates a new sync monitor and sets up listeners to sync and network changes
-    public init() {
+    private init() {
         startMonitoring()
     }
     
@@ -316,6 +315,7 @@ public class SyncMonitor: ObservableObject {
         monitoringTask?.cancel()
     }
     
+    #if DEBUG
     /// Convenience initializer that creates a SyncMonitor with preset state values for testing or previews
     ///
     ///     let syncMonitor = SyncMonitor(isImportSuccessful: false, errorText: "Cloud disrupted by weather net")
@@ -353,13 +353,14 @@ public class SyncMonitor: ObservableObject {
         self.monitoringTask?.cancel()
         self.monitoringTask = nil
     }
+    #endif
     
     /// Ensures that the shared instance of `SyncMonitor` is initialized.
     ///
     /// This method triggers the setup of event listeners, network monitoring, and iCloud account status checks for `shared`.
     /// Call this method as early as possible to help ensure `shared` accurately reflects the system's status when first accessed.
-    public static func configure() {
-        _ = shared
+    public func configure() {
+        _ = SyncMonitor.shared
     }
     
     // MARK: - Private methods -
