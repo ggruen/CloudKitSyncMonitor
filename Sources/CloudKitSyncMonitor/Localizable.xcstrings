@@ -53,7 +53,7 @@
         },
         "tr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "Hata"
           }
         },
@@ -117,7 +117,7 @@
         },
         "tr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "iCloud hesabı yok"
           }
         },
@@ -181,8 +181,8 @@
         },
         "tr" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Şebeke mevcut değil"
+            "state" : "translated",
+            "value" : "İnternet bağlantısı yok"
           }
         },
         "zh-Hans" : {
@@ -245,7 +245,7 @@
         },
         "tr" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "iCloud ile eşzamanlanmıyor"
           }
         },
@@ -309,8 +309,8 @@
         },
         "tr" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Senkronizasyon başlatılmadı"
+            "state" : "translated",
+            "value" : "Eşzamanlama başlatılmadı"
           }
         },
         "zh-Hans" : {
@@ -373,8 +373,8 @@
         },
         "tr" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "iCloud ile senkronize edildi"
+            "state" : "translated",
+            "value" : "iCloud ile eşzamanlandı"
           }
         },
         "zh-Hans" : {
@@ -437,8 +437,8 @@
         },
         "tr" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Senkronizasyon..."
+            "state" : "translated",
+            "value" : "Eşzamanlanıyor…"
           }
         },
         "zh-Hans" : {
